@@ -49,3 +49,9 @@ npm run dev
 
 See `docs/treasury-sentinel-project-plan.md` and `docs/treasury-sentinel-implementation-plan.md`.
 Contract deployment env fields are documented in `contracts/.env.example`.
+Local contract logic can be checked with:
+
+```bash
+cd contracts
+npm run demo:local
+```

@@ -43,8 +43,32 @@ cd contracts
 cp .env.example .env
 npm install
 npm test
+npm run demo:local
 npx hardhat run scripts/deploy.js --network baseSepolia
 ```
+
+For a persistent local node flow:
+
+```bash
+cd contracts
+npx hardhat node
+```
+
+In another terminal:
+
+```bash
+cd contracts
+npm run demo:localhost
+```
+
+Recommended order before touching Base Sepolia:
+
+1. `npm test` proves the contract invariants.
+2. `npm run demo:local` proves the full local payment flow on an in-memory
+   Hardhat chain.
+3. `npm run demo:localhost` proves the same flow against a persistent local
+   Hardhat node.
+4. Deploy to Base Sepolia only after the three local checks pass.
 
 Before live KeeperHub execution, grant the KeeperHub wallet `EXECUTOR_ROLE` or
 deploy the demo contract with the KeeperHub wallet as executor.

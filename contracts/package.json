@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "test": "hardhat test",
-    "compile": "hardhat compile"
+    "compile": "hardhat compile",
+    "demo:local": "hardhat run scripts/local-payment-demo.js",
+    "demo:localhost": "hardhat run scripts/local-payment-demo.js --network localhost"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",

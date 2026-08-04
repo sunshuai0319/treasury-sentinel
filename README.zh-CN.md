@@ -51,5 +51,12 @@ npm test
 
 合约 `.env` 每个字段的说明见 `contracts/.env.example`。
 
+本地合约业务逻辑可以直接跑：
+
+```bash
+cd contracts
+npm run demo:local
+```
+
 项目方案见 `docs/treasury-sentinel-project-plan.md`，实施计划见
 `docs/treasury-sentinel-implementation-plan.md`。

@@ -9,6 +9,7 @@ def test_settings_accept_local_embedding_path():
         ark_api_key="test",
         keeperhub_api_key="test",
         base_sepolia_rpc_url="https://example.invalid",
+        chain_id=84532,
     )
 
     assert settings.embedding_dimension == 512
