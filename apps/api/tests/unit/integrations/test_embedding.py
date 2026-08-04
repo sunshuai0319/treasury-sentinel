@@ -1,4 +1,4 @@
-from app.integrations.milvus.embedding import LocalBgeEmbedder, QUERY_PREFIX
+from app.integrations.milvus.embedding import QUERY_PREFIX, LocalBgeEmbedder
 
 
 def test_embedder_returns_normalized_512_vector():
