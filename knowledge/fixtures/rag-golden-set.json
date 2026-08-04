@@ -1,0 +1,262 @@
+[
+  {
+    "query": "已批准供应商 420 USDC 是否可以自动付款",
+    "expected_document": "payment-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "2.1 自动付款"
+    ],
+    "expected_action": "APPROVE",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "600 USDC 软件订阅付款需要什么审批",
+    "expected_document": "payment-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "2.2 单级审批"
+    ],
+    "expected_action": "REVIEW",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "2500 USDC 付款 MVP 是否执行",
+    "expected_document": "payment-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "2.3 双级审批"
+    ],
+    "expected_action": "REJECT",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "新供应商首次付款能否自动执行",
+    "expected_document": "approval-matrix",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 首次付款"
+    ],
+    "expected_action": "REVIEW",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "重复发票应该如何处理",
+    "expected_document": "vendor-risk-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 重复发票"
+    ],
+    "expected_action": "REJECT",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "相同内容哈希的发票可以重新付款吗",
+    "expected_document": "vendor-risk-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 重复发票"
+    ],
+    "expected_action": "REJECT",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "软件预算能否借用市场营销预算",
+    "expected_document": "treasury-limits",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 分类预算"
+    ],
+    "expected_action": "REJECT",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "分类预算不足时 Agent 应该怎么做",
+    "expected_document": "treasury-limits",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 分类预算"
+    ],
+    "expected_action": "REJECT",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "钱包地址刚变更还能自动付款吗",
+    "expected_document": "wallet-change-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 冷静期"
+    ],
+    "expected_action": "REVIEW",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "24 小时冷静期内地址匹配是否可以自动付款",
+    "expected_document": "wallet-change-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 冷静期"
+    ],
+    "expected_action": "REVIEW",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "一小时三次地址异常后需要什么动作",
+    "expected_document": "incident-response",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 地址异常"
+    ],
+    "expected_action": "PAUSE",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "暂停建议需要记录哪些内容",
+    "expected_document": "incident-response",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 地址异常"
+    ],
+    "expected_action": "PAUSE",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "低风险供应商小额付款需要哪些条件",
+    "expected_document": "payment-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "2.1 自动付款"
+    ],
+    "expected_action": "APPROVE",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "财务经理审批后能否重新检查链上执行",
+    "expected_document": "payment-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "2.2 单级审批"
+    ],
+    "expected_action": "REVIEW",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "负责人和财务经理都需要审批的是哪类金额",
+    "expected_document": "payment-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "2.3 双级审批"
+    ],
+    "expected_action": "REJECT",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "供应商 PENDING_REVIEW 是否视为首次付款",
+    "expected_document": "approval-matrix",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 首次付款"
+    ],
+    "expected_action": "REVIEW",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "原付款无效前重复发票能否人工降级",
+    "expected_document": "vendor-risk-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 重复发票"
+    ],
+    "expected_action": "REJECT",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "市场营销预算和软件订阅预算是否独立",
+    "expected_document": "treasury-limits",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 分类预算"
+    ],
+    "expected_action": "REJECT",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "当前白名单地址一致但刚修改过钱包如何处理",
+    "expected_document": "wallet-change-policy",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 冷静期"
+    ],
+    "expected_action": "REVIEW",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  },
+  {
+    "query": "地址异常暂停建议要包含触发请求吗",
+    "expected_document": "incident-response",
+    "expected_version": 1,
+    "expected_sections": [
+      "1.1 地址异常"
+    ],
+    "expected_action": "PAUSE",
+    "required_conditions": [
+      "policy_version=1",
+      "cite_required_section"
+    ]
+  }
+]

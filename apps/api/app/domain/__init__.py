@@ -1,0 +1,2 @@
+"""Treasury domain model."""
+

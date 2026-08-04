@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+node_modules/
+.next/
+out/
+coverage/
+artifacts/
+cache/
+typechain-types/
+.worktrees/
+

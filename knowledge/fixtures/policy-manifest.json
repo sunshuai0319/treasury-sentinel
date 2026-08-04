@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "embedding_model": "bge-small-zh-v1.5",
+  "embedding_dimension": 512,
+  "documents": [
+    {
+      "document_id": "payment-policy",
+      "title": "企业付款政策",
+      "version": 1,
+      "path": "knowledge/policies/payment-policy-v1.md",
+      "document_type": "PAYMENT_POLICY",
+      "required_sections": ["2.1 自动付款", "2.2 单级审批", "2.3 双级审批"],
+      "content_hash": null
+    },
+    {
+      "document_id": "approval-matrix",
+      "title": "审批矩阵",
+      "version": 1,
+      "path": "knowledge/policies/approval-matrix-v1.md",
+      "document_type": "APPROVAL_MATRIX",
+      "required_sections": ["1.1 首次付款"],
+      "content_hash": null
+    },
+    {
+      "document_id": "vendor-risk-policy",
+      "title": "供应商风险政策",
+      "version": 1,
+      "path": "knowledge/policies/vendor-risk-policy-v1.md",
+      "document_type": "VENDOR_RISK",
+      "required_sections": ["1.1 重复发票"],
+      "content_hash": null
+    },
+    {
+      "document_id": "treasury-limits",
+      "title": "财资额度政策",
+      "version": 1,
+      "path": "knowledge/policies/treasury-limits-v1.md",
+      "document_type": "TREASURY_LIMITS",
+      "required_sections": ["1.1 分类预算"],
+      "content_hash": null
+    },
+    {
+      "document_id": "wallet-change-policy",
+      "title": "钱包变更政策",
+      "version": 1,
+      "path": "knowledge/policies/wallet-change-policy-v1.md",
+      "document_type": "WALLET_CHANGE",
+      "required_sections": ["1.1 冷静期"],
+      "content_hash": null
+    },
+    {
+      "document_id": "incident-response",
+      "title": "事故响应政策",
+      "version": 1,
+      "path": "knowledge/policies/incident-response-v1.md",
+      "document_type": "INCIDENT_RESPONSE",
+      "required_sections": ["1.1 地址异常"],
+      "content_hash": null
+    }
+  ]
+}
+
