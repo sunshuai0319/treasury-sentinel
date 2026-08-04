@@ -47,6 +47,20 @@ npm run demo:local
 npx hardhat run scripts/deploy.js --network baseSepolia
 ```
 
+Deploy demo USDC on Base Sepolia:
+
+```bash
+cd contracts
+npm run deploy:mock-usdc:base-sepolia
+```
+
+Then set `MOCK_USDC_ADDRESS` and `TREASURY_GUARD_ADDRESS` in `contracts/.env`
+and fund the guard with test USDC:
+
+```bash
+npm run fund:guard:base-sepolia
+```
+
 For a persistent local node flow:
 
 ```bash
