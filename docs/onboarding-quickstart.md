@@ -16,7 +16,9 @@ uv run uvicorn app.main:app --reload --port 8000
 ```
 
 For real Milvus ingestion, remove `--dry-run` after setting `MILVUS_URI` and
-`EMBEDDING_MODEL_PATH`.
+`EMBEDDING_MODEL_PATH`. If Milvus uses username/password auth, set
+`MILVUS_USER` and `MILVUS_PASSWORD` in `apps/api/.env`. Leave `MILVUS_TOKEN`
+empty in that case.
 
 ## 2. Contracts
 
@@ -30,6 +32,18 @@ npx hardhat run scripts/deploy.js --network baseSepolia
 
 Before live KeeperHub execution, grant the KeeperHub wallet `EXECUTOR_ROLE` or
 deploy the demo contract with the KeeperHub wallet as executor.
+
+`contracts/.env` fields:
+
+- `BASE_SEPOLIA_RPC_URL`: Base Sepolia RPC endpoint from your RPC provider.
+- `DEPLOYER_PRIVATE_KEY`: testnet-only deployer wallet private key. It needs
+  Base Sepolia ETH for gas and must not hold mainnet funds.
+- `ETHERSCAN_API_KEY`: optional, only needed for later contract verification.
+
+After deployment, copy the deployed `TreasuryGuard` address into
+`apps/api/.env` as `TREASURY_GUARD_ADDRESS`. Put the demo USDC address in
+`DEMO_USDC_ADDRESS`. The KeeperHub wallet address belongs in
+`KEEPERHUB_WALLET_ADDRESS`.
 
 ## 3. Web Console
 

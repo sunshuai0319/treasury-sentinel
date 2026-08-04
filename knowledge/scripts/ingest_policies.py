@@ -33,6 +33,8 @@ def main() -> None:
         settings.milvus_token,
         settings.milvus_collection,
         settings.embedding_dimension,
+        settings.milvus_user,
+        settings.milvus_password,
     )
     inserted = repo.upsert_chunks(chunks)
     print(json.dumps({"chunks": inserted, "collection": settings.milvus_collection}))
@@ -40,4 +42,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

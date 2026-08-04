@@ -22,6 +22,9 @@ PYTHONPATH=. uv run python ../../knowledge/scripts/generate_synthetic_data.py
 PYTHONPATH=. uv run python ../../knowledge/scripts/ingest_policies.py --dry-run
 ```
 
+如果你的 Milvus 使用用户名密码登录，在 `apps/api/.env` 中填写
+`MILVUS_USER` 和 `MILVUS_PASSWORD`，`MILVUS_TOKEN` 留空。
+
 启动前端控制台：
 
 ```bash
@@ -39,6 +42,8 @@ cp .env.example .env
 npm install
 npm test
 ```
+
+合约 `.env` 每个字段的说明见 `contracts/.env.example`。
 
 项目方案见 `docs/treasury-sentinel-project-plan.md`，实施计划见
 `docs/treasury-sentinel-implementation-plan.md`。

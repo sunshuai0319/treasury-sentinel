@@ -25,16 +25,29 @@ class PolicyChunk:
 
 
 class MilvusPolicyRepository:
-    def __init__(self, uri: str, token: str | None, collection_name: str, dimension: int = 512):
+    def __init__(
+        self,
+        uri: str,
+        token: str | None,
+        collection_name: str,
+        dimension: int = 512,
+        user: str | None = None,
+        password: str | None = None,
+    ):
         self.uri = uri
         self.token = token
+        self.user = user
+        self.password = password
         self.collection_name = collection_name
         self.dimension = dimension
         self.alias = "treasury_sentinel"
 
     def connect(self) -> None:
         kwargs: dict[str, Any] = {"alias": self.alias, "uri": self.uri}
-        if self.token:
+        if self.user and self.password:
+            kwargs["user"] = self.user
+            kwargs["password"] = self.password
+        elif self.token:
             kwargs["token"] = self.token
         connections.connect(**kwargs)
 
@@ -88,4 +101,3 @@ class MilvusPolicyRepository:
             {"score": hit.score, **{field: hit.entity.get(field) for field in fields}}
             for hit in results[0]
         ]
-

@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     database_url: str
     milvus_uri: str
     milvus_token: str | None = None
+    milvus_user: str | None = None
+    milvus_password: str | None = None
     milvus_collection: str = "treasury_policy_chunks_bge_zh_v1"
     embedding_model_path: str = "/Volumes/wd2t/model/bge-small-zh-v1.5"
     embedding_dimension: int = 512
@@ -27,4 +29,3 @@ class Settings(BaseSettings):
 
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
-

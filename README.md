@@ -22,6 +22,9 @@ PYTHONPATH=. uv run python ../../knowledge/scripts/generate_synthetic_data.py
 PYTHONPATH=. uv run python ../../knowledge/scripts/ingest_policies.py --dry-run
 ```
 
+For your deployed Milvus with username/password auth, fill
+`MILVUS_USER` and `MILVUS_PASSWORD` in `apps/api/.env`.
+
 Start the API:
 
 ```bash
@@ -39,3 +42,4 @@ npm run dev
 ```
 
 See `docs/treasury-sentinel-project-plan.md` and `docs/treasury-sentinel-implementation-plan.md`.
+Contract deployment env fields are documented in `contracts/.env.example`.
