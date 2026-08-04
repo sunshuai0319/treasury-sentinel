@@ -123,7 +123,9 @@ treasury-sentinel/
 ├── README.md
 ├── README.zh-CN.md
 ├── LICENSE
-├── .env.example
+├── apps/api/.env.example
+├── apps/web/.env.example
+├── contracts/.env.example
 ├── .gitignore
 ├── Makefile
 ├── docker-compose.dev.yml          # 可选：只启动项目辅助服务，不部署现有 PG/Milvus
@@ -543,7 +545,9 @@ starter-kit/
 ├── scripts/check_environment.py
 ├── scripts/export_contract_abi.py
 ├── scripts/verify_wallet_role.py
-├── .env.example
+├── apps/api/.env.example
+├── apps/web/.env.example
+├── contracts/.env.example
 ├── QUICKSTART.md
 ├── QUICKSTART.zh-CN.md
 ├── TROUBLESHOOTING.md

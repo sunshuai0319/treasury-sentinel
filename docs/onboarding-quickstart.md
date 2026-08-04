@@ -6,8 +6,8 @@ already running.
 ## 1. API
 
 ```bash
-cp .env.example apps/api/.env
 cd apps/api
+cp .env.example .env
 uv sync
 uv run pytest
 PYTHONPATH=../..:. uv run python ../../knowledge/scripts/generate_synthetic_data.py
@@ -22,6 +22,7 @@ For real Milvus ingestion, remove `--dry-run` after setting `MILVUS_URI` and
 
 ```bash
 cd contracts
+cp .env.example .env
 npm install
 npm test
 npx hardhat run scripts/deploy.js --network baseSepolia
@@ -34,6 +35,7 @@ deploy the demo contract with the KeeperHub wallet as executor.
 
 ```bash
 cd apps/web
+cp .env.example .env.local
 npm install
 npm run build
 npm run dev
@@ -50,4 +52,3 @@ Open `http://localhost:3000`. The default API base is
 - Contract tests: `contracts/test/TreasuryGuard.js`
 - Demo scenarios: normal, duplicate, address mismatch, over limit, emergency pause
 - Live evidence: KeeperHub execution id, Base Sepolia transaction hash, contract event
-

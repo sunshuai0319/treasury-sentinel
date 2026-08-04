@@ -39,7 +39,9 @@ treasury-sentinel/
 
 **文件：**
 - 创建：`README.md`
-- 创建：`.env.example`
+- 创建：`apps/api/.env.example`
+- 创建：`apps/web/.env.example`
+- 创建：`contracts/.env.example`
 - 创建：`.gitignore`
 - 创建：`Makefile`
 - 创建：`apps/api/pyproject.toml`

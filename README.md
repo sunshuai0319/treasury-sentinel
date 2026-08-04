@@ -9,8 +9,8 @@ and KeeperHub for real Base Sepolia execution.
 ## Quick Start
 
 ```bash
-cp .env.example apps/api/.env
 cd apps/api
+cp .env.example .env
 uv sync
 uv run pytest
 ```
@@ -33,9 +33,9 @@ Start the web app:
 
 ```bash
 cd apps/web
-pnpm install
-pnpm dev
+cp .env.example .env.local
+npm install
+npm run dev
 ```
 
 See `docs/treasury-sentinel-project-plan.md` and `docs/treasury-sentinel-implementation-plan.md`.
-

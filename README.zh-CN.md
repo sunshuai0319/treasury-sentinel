@@ -9,8 +9,8 @@ KeeperHub 负责真实 Base Sepolia 链上执行。
 ## 快速开始
 
 ```bash
-cp .env.example apps/api/.env
 cd apps/api
+cp .env.example .env
 uv sync
 uv run pytest
 ```
@@ -22,6 +22,23 @@ PYTHONPATH=. uv run python ../../knowledge/scripts/generate_synthetic_data.py
 PYTHONPATH=. uv run python ../../knowledge/scripts/ingest_policies.py --dry-run
 ```
 
+启动前端控制台：
+
+```bash
+cd apps/web
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+合约环境：
+
+```bash
+cd contracts
+cp .env.example .env
+npm install
+npm test
+```
+
 项目方案见 `docs/treasury-sentinel-project-plan.md`，实施计划见
 `docs/treasury-sentinel-implementation-plan.md`。
-
