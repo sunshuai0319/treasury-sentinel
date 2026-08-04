@@ -20,8 +20,5 @@
     "eslint": "^9.32.0",
     "eslint-config-next": "^15.5.0",
     "typescript": "^5.9.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["sharp"]
   }
 }
