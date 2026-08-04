@@ -1,4 +1,8 @@
-from knowledge.scripts.generate_synthetic_data import generate_dataset, golden_set
+from knowledge.scripts.generate_synthetic_data import (
+    default_output_path,
+    generate_dataset,
+    golden_set,
+)
 
 
 def test_generator_is_deterministic_and_contains_all_scenarios():
@@ -37,3 +41,9 @@ def test_golden_set_covers_documents_and_actions():
         "incident-response",
     }
 
+
+def test_default_output_path_is_repo_knowledge_fixtures():
+    default = default_output_path()
+
+    assert default.name == "fixtures"
+    assert default.parent.name == "knowledge"

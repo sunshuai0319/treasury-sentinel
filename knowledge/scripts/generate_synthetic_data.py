@@ -120,14 +120,17 @@ def write_dataset(output: Path, seed: int = 20260804) -> None:
     )
 
 
+def default_output_path() -> Path:
+    return Path(__file__).parents[1] / "fixtures"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=20260804)
-    parser.add_argument("--output", type=Path, default=Path("knowledge/fixtures"))
+    parser.add_argument("--output", type=Path, default=default_output_path())
     args = parser.parse_args()
     write_dataset(args.output, args.seed)
 
 
 if __name__ == "__main__":
     main()
-
