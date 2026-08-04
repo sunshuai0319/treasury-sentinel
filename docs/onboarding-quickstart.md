@@ -20,6 +20,22 @@ For real Milvus ingestion, remove `--dry-run` after setting `MILVUS_URI` and
 `MILVUS_USER` and `MILVUS_PASSWORD` in `apps/api/.env`. Leave `MILVUS_TOKEN`
 empty in that case.
 
+Check Milvus authentication before importing vectors:
+
+```bash
+cd apps/api
+PYTHONPATH=../..:. uv run python ../../scripts/check_milvus_connection.py
+```
+
+The command masks the password and prints whether a connection was established.
+If it returns `UNAUTHENTICATED` or `illegal connection params`, check:
+
+- `MILVUS_USER` and `MILVUS_PASSWORD` are exactly correct; Milvus passwords are
+  case-sensitive.
+- The common default is often `root` / `Milvus`, not lowercase `milvus`.
+- `MILVUS_DB_NAME` is set only when your deployment uses a non-default database.
+- `MILVUS_TOKEN` is empty when using username/password.
+
 ## 2. Contracts
 
 ```bash

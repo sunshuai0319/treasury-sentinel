@@ -25,6 +25,12 @@ PYTHONPATH=. uv run python ../../knowledge/scripts/ingest_policies.py --dry-run
 如果你的 Milvus 使用用户名密码登录，在 `apps/api/.env` 中填写
 `MILVUS_USER` 和 `MILVUS_PASSWORD`，`MILVUS_TOKEN` 留空。
 
+正式导入前可以先验证连接，命令不会打印密码：
+
+```bash
+PYTHONPATH=../..:. uv run python ../../scripts/check_milvus_connection.py
+```
+
 启动前端控制台：
 
 ```bash

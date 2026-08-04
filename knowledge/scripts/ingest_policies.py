@@ -35,6 +35,7 @@ def main() -> None:
         settings.embedding_dimension,
         settings.milvus_user,
         settings.milvus_password,
+        settings.milvus_db_name,
     )
     inserted = repo.upsert_chunks(chunks)
     print(json.dumps({"chunks": inserted, "collection": settings.milvus_collection}))

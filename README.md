@@ -25,6 +25,12 @@ PYTHONPATH=. uv run python ../../knowledge/scripts/ingest_policies.py --dry-run
 For your deployed Milvus with username/password auth, fill
 `MILVUS_USER` and `MILVUS_PASSWORD` in `apps/api/.env`.
 
+Before the real import, verify auth without printing the password:
+
+```bash
+PYTHONPATH=../..:. uv run python ../../scripts/check_milvus_connection.py
+```
+
 Start the API:
 
 ```bash

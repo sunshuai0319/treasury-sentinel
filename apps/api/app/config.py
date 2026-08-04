@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     milvus_token: str | None = None
     milvus_user: str | None = None
     milvus_password: str | None = None
+    milvus_db_name: str | None = None
     milvus_collection: str = "treasury_policy_chunks_bge_zh_v1"
     embedding_model_path: str = "/Volumes/wd2t/model/bge-small-zh-v1.5"
     embedding_dimension: int = 512
