@@ -82,7 +82,7 @@ class TreasuryAgentGraph:
         )
         try:
             evidence = self.policy_retriever(query)
-        except (ConnectionError, RuntimeError, ValueError) as exc:
+        except Exception as exc:  # noqa: BLE001 - external retrieval must fail closed into REVIEW
             return {**state, "error": f"policy retrieval failed: {exc}", "policy_evidence": []}
         return {**state, "policy_evidence": evidence}
 

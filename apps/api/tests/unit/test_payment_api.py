@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api import routes
+from app.config import Settings
 from app.db import Base
 from app.domain.tables import InvoiceTable, VendorTable
+from app.integrations.keeperhub import KeeperHubExecution
 from app.main import app
 from app.services.payment_workflow import PaymentWorkflowRepository
 
@@ -25,8 +27,32 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     with SessionLocal() as session:
         seed_business_rows(session)
     routes.get_repository.cache_clear()
+    routes.get_keeperhub_client.cache_clear()
     app.dependency_overrides = {}
     monkeypatch.setattr(routes, "get_repository", lambda: PaymentWorkflowRepository(SessionLocal))
+    monkeypatch.setattr(
+        routes,
+        "get_live_policy_retriever",
+        lambda: lambda _: [
+            {
+                "document_id": "payment-policy",
+                "section_id": "2.1 自动付款",
+                "policy_version": 1,
+                "score": 0.92,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        routes,
+        "get_settings",
+        lambda: Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            milvus_uri="http://localhost:19530",
+            ark_api_key="test",
+            keeperhub_api_key="",
+            base_sepolia_rpc_url="https://example.invalid",
+        ),
+    )
     try:
         yield TestClient(app)
     finally:
@@ -117,6 +143,57 @@ def test_review_payment_can_be_manually_approved_then_fail_closed_on_execute(cli
 
     executed = client.post(f"/api/payment-requests/{request_id}/execute")
     assert executed.status_code == 503
+
+
+def test_approved_payment_executes_through_keeperhub(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    captured_payloads = []
+
+    class FakeKeeperHubClient:
+        async def execute_contract_call(self, payload):
+            captured_payloads.append(payload)
+            return KeeperHubExecution(
+                execution_id="exec_test_123",
+                status="submitted",
+                transaction_hash="0xabc",
+            )
+
+    monkeypatch.setattr(
+        routes,
+        "get_settings",
+        lambda: Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            milvus_uri="http://localhost:19530",
+            ark_api_key="test",
+            keeperhub_api_key="kh_test",
+            keeperhub_wallet_address="0x7836A8deB72B27F94d0dF555E23d684aDC894Fe6",
+            treasury_guard_address="0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3",
+            demo_usdc_address="0x8eEf98476B371BF01D99CBCEA4D7745B49040c95",
+            base_sepolia_rpc_url="https://example.invalid",
+        ),
+    )
+    monkeypatch.setattr(routes, "get_keeperhub_client", lambda: FakeKeeperHubClient())
+    payload = {
+        "vendor_id": "vendor_demo",
+        "invoice_id": "inv_demo_001",
+        "amount_units": 420_000_000,
+        "recipient_address": "0x1111111111111111111111111111111111111111",
+    }
+    created = client.post("/api/payment-requests", json=payload, headers={"Idempotency-Key": "idem-exec"})
+    request_id = created.json()["request_id"]
+    client.post(f"/api/payment-requests/{request_id}/analyze")
+
+    executed = client.post(f"/api/payment-requests/{request_id}/execute")
+
+    assert executed.status_code == 200
+    body = executed.json()
+    assert body["status"] == "CONFIRMING"
+    assert body["keeperhub_execution_id"] == "exec_test_123"
+    assert body["transaction_hash"] == "0xabc"
+    assert captured_payloads[0]["to"] == "0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3"
+    assert captured_payloads[0]["data"].startswith("0xde62cb4b")
+    assert captured_payloads[0]["arguments"]["amount"] == "420000000"
 
 
 def test_recoverable_endpoint_returns_confirming_records(client: TestClient):

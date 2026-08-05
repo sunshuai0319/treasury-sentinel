@@ -22,6 +22,8 @@ from app.domain.tables import (
 from app.services.decision_hash import stable_decision_hash
 from app.services.rules import evaluate_payment
 
+PolicyRetriever = Callable[[str], list[dict]]
+
 
 @dataclass(frozen=True)
 class PaymentRequestRecord:
@@ -97,7 +99,7 @@ class PaymentWorkflowRepository:
             row = session.get(PaymentRequestTable, request_id)
             return record_from_table(row) if row else None
 
-    def analyze(self, request_id: str) -> PaymentRun | None:
+    def analyze(self, request_id: str, policy_retriever: PolicyRetriever | None = None) -> PaymentRun | None:
         with self.session_factory() as session:
             row = session.get(PaymentRequestTable, request_id)
             if not row:
@@ -121,7 +123,7 @@ class PaymentWorkflowRepository:
                 recipient_address=row.recipient_address,
                 content_hash=stable_decision_hash({"invoice_id": row.invoice_id}),
             )
-            graph_run = TreasuryAgentGraph().run(
+            graph_run = TreasuryAgentGraph(policy_retriever=policy_retriever).run(
                 {
                     "request_id": row.request_id,
                     "scenario": "workflow",
