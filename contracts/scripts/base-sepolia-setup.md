@@ -46,3 +46,15 @@ run:
 ```bash
 npx hardhat run scripts/seed-recipient.js --network baseSepolia -- --recipient 0x...
 ```
+
+## Grant KeeperHub executor role
+
+Set `KEEPERHUB_WALLET_ADDRESS` in `apps/api/.env`, then run:
+
+```bash
+npm run grant:keeperhub:base-sepolia
+```
+
+`EXECUTOR_ROLE` is a `bytes32` role id defined inside `TreasuryGuard`, not an
+address to paste into `.env`. The script reads it from the contract and grants
+it to the KeeperHub EVM wallet.
