@@ -68,5 +68,21 @@ uv run python ../../starter-kit/scripts/check_environment.py
 
 在 KeeperHub key 和执行钱包地址未配置前，脚本会以非零状态退出，应用侧真实执行也会 fail-closed。
 
+全新数据库先用 Alembic 建表，再 seed 固定数据：
+
+```bash
+cd apps/api
+uv run alembic upgrade head
+cd ../..
+PYTHONPATH=apps/api apps/api/.venv/bin/python database/seed_pg.py
+```
+
+如果之前已经用旧版 seed 脚本创建过表，确认表存在后只需补一次版本标记：
+
+```bash
+cd apps/api
+uv run alembic stamp head
+```
+
 项目方案见 `docs/treasury-sentinel-project-plan.md`，实施计划见
 `docs/treasury-sentinel-implementation-plan.md`。

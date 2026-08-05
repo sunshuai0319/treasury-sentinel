@@ -67,3 +67,20 @@ uv run python ../../starter-kit/scripts/check_environment.py
 
 The script exits non-zero until KeeperHub credentials and wallet address are
 configured, which keeps live execution fail-closed.
+
+For a fresh database, create the schema with Alembic before seeding fixtures:
+
+```bash
+cd apps/api
+uv run alembic upgrade head
+cd ../..
+PYTHONPATH=apps/api apps/api/.venv/bin/python database/seed_pg.py
+```
+
+If you already created tables with the older seed script, stamp that database
+once after confirming the tables exist:
+
+```bash
+cd apps/api
+uv run alembic stamp head
+```

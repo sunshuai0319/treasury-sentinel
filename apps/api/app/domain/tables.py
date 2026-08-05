@@ -56,6 +56,8 @@ class PaymentRequestTable(Base):
     status: Mapped[str] = mapped_column(String(32), default="SUBMITTED", index=True)
     final_action: Mapped[str | None] = mapped_column(String(16), nullable=True)
     decision_hash: Mapped[str | None] = mapped_column(String(66), nullable=True)
+    keeperhub_execution_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    transaction_hash: Mapped[str | None] = mapped_column(String(66), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

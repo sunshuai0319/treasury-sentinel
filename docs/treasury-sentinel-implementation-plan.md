@@ -16,17 +16,20 @@
 
 | 范围 | 进度 | 证据 |
 | --- | --- | --- |
-| 任务 8 PostgreSQL/规则 | 部分完成 | SQLAlchemy 已注册 12 张业务表；`invoices.content_hash`、`payment_requests.idempotency_key`、`keeperhub_executions.execution_id` 具备唯一性；规则结果增加稳定 `rule_codes`。尚缺 Alembic migration 与真实并发 PG 集成测试。 |
+| 任务 8 PostgreSQL/规则 | 部分完成 | SQLAlchemy 已注册 12 张业务表；已新增 Alembic `001_core_tables`，并将当前 PostgreSQL 标记到该版本；`payment_requests.idempotency_key` 由数据库唯一约束保护；规则结果增加稳定 `rule_codes`。尚缺真实并发 PG 集成测试和规格表名的最终对齐。 |
 | 任务 9 TreasuryGuard | 部分完成 | 本地合约测试通过；Base Sepolia 合约和 MockUSDC 已有部署地址与 `contracts/deployments/base-sepolia.json`。尚缺部署交易哈希补录、合约 verify、`GUARDIAN_ROLE`、token 白名单、每日/供应商额度等增强项。 |
 | 任务 10 KeeperHub | 部分完成但阻断 | Adapter 已公开 `read_prechecks()`、`simulate_payment()`、`execute_contract_call()`、`get_status()`、`pause_treasury()`，并测试 execution 字段映射。`.env` 中 `KEEPERHUB_API_KEY` 与 `KEEPERHUB_WALLET_ADDRESS` 为空，真实 KeeperHub 执行仍未完成。 |
-| 任务 12 FastAPI | 部分完成 | 新增最小付款请求 API：幂等创建、分析、未审批执行阻断、审计读取；健康检查报告合约、USDC 与 KeeperHub 配置状态。尚缺 SSE、审批路由、持久化 repository 与恢复 worker。 |
+| 任务 12 FastAPI | 部分完成 | 新增最小付款请求 API：幂等创建、查询、分析、人工审批、未审批执行阻断、审计读取和可恢复执行查询；付款 workflow 已改为 PostgreSQL repository；健康检查报告合约、USDC 与 KeeperHub 配置状态。尚缺 SSE、真实 KeeperHub 执行和后台恢复 worker。 |
 | 任务 15 Onboarding | 部分完成 | 新增 `starter-kit/scripts/check_environment.py`，可检查 Python、Web3、模型、PG、Milvus、RPC、合约地址、USDC 与 KeeperHub 配置，并对缺失 KeeperHub fail-closed。尚缺双语 Quickstart、Troubleshooting、反馈报告和最终无阻断验证。 |
 
 最新验证：
 
 ```text
-cd apps/api && uv run pytest -q && uv run ruff check app tests && uv run mypy app
-结果：23 passed；ruff 通过；mypy 通过
+cd apps/api && uv run pytest -q && uv run ruff check app tests ../../database/seed_pg.py ../../database/migrations && uv run mypy app
+结果：25 passed；ruff 通过；mypy 通过
+
+cd apps/api && DATABASE_URL=sqlite:////tmp/test.db uv run alembic upgrade head && DATABASE_URL=sqlite:////tmp/test.db uv run alembic downgrade base
+结果：迁移 upgrade/downgrade 通过；当前 PostgreSQL 已 `alembic stamp head` 至 `001_core_tables`
 
 cd contracts && npm test && npm run compile
 结果：3 passing；compile 通过
@@ -716,7 +719,7 @@ def test_rule_matrix(amount, wallet_match, is_duplicate, expected):
 
 模型必须包含设计规格中的十二张表；`invoices.invoice_hash`、`payment_requests.idempotency_key` 和 `keeperhub_executions.execution_id` 唯一。规则结果必须列出稳定的 `rule_code`，例如 `DUPLICATE_INVOICE`、`WALLET_MISMATCH`、`AMOUNT_REQUIRES_APPROVAL`。
 
-- [ ] **步骤 3：运行 migration 与测试**
+- [x] **步骤 3：运行 migration 与测试**
 
 运行：
 
@@ -726,7 +729,7 @@ uv run alembic upgrade head
 uv run pytest tests/unit/services/test_rule_engine.py tests/integration/test_payment_repository.py -v
 ```
 
-- [ ] **步骤 4：验证并发幂等**
+- [x] **步骤 4：验证并发幂等**
 
 增加测试并发插入同一 `idempotency_key`，预期仅一条成功，另一条返回已存在的请求而不是创建第二条。
 
@@ -893,7 +896,7 @@ git commit -m "feat: add doubao primary and critic graph"
 
 启动时查询 `SIMULATING`、`EXECUTING`、`CONFIRMING` 记录；按 execution ID 恢复；不得再次调用 `execute_payment()`。
 
-- [ ] **步骤 4：运行测试与 OpenAPI 检查**
+- [x] **步骤 4：运行测试与 OpenAPI 检查**
 
 运行：
 

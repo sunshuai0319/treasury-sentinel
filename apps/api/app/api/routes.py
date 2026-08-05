@@ -1,10 +1,13 @@
+from functools import lru_cache
+
 from fastapi import APIRouter, Header, HTTPException, Response, status
 from pydantic import BaseModel, Field
 
 from app.agent.demo import run_demo_scenario
 from app.agent.state import PaymentRun
 from app.config import get_settings
-from app.services.payment_workflow import PaymentRequestRecord, store
+from app.db import session_factory
+from app.services.payment_workflow import PaymentRequestRecord, PaymentWorkflowRepository
 
 router = APIRouter()
 
@@ -22,6 +25,11 @@ class CreatePaymentRequest(BaseModel):
     invoice_id: str = Field(min_length=1)
     amount_units: int = Field(gt=0)
     recipient_address: str = Field(pattern=r"^0x[a-fA-F0-9]{40}$")
+
+
+class ApprovePaymentRequest(BaseModel):
+    approver: str = Field(min_length=1)
+    reason: str = ""
 
 
 class PaymentRequestView(BaseModel):
@@ -50,6 +58,11 @@ def to_view(record: PaymentRequestRecord) -> PaymentRequestView:
         keeperhub_execution_id=record.keeperhub_execution_id,
         transaction_hash=record.transaction_hash,
     )
+
+
+@lru_cache(maxsize=1)
+def get_repository() -> PaymentWorkflowRepository:
+    return PaymentWorkflowRepository(session_factory(get_settings()))
 
 
 @router.get("/health")
@@ -90,7 +103,7 @@ def create_payment_request(
     response: Response,
     idempotency_key: str = Header(..., alias="Idempotency-Key"),
 ) -> PaymentRequestView:
-    record = store.create(
+    record = get_repository().create(
         idempotency_key=idempotency_key,
         vendor_id=payload.vendor_id,
         invoice_id=payload.invoice_id,
@@ -102,32 +115,56 @@ def create_payment_request(
     return to_view(record)
 
 
-@router.post("/payment-requests/{request_id}/analyze", response_model=PaymentRun)
-def analyze_payment_request(request_id: str) -> PaymentRun:
-    record = store.get(request_id)
+@router.get("/payment-requests/{request_id}", response_model=PaymentRequestView)
+def get_payment_request(request_id: str) -> PaymentRequestView:
+    record = get_repository().get(request_id)
     if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
-    return store.analyze(record)
+    return to_view(record)
+
+
+@router.post("/payment-requests/{request_id}/analyze", response_model=PaymentRun)
+def analyze_payment_request(request_id: str) -> PaymentRun:
+    run = get_repository().analyze(request_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="payment request not found")
+    return run
+
+
+@router.post("/payment-requests/{request_id}/approve", response_model=PaymentRequestView)
+def approve_payment_request(request_id: str, payload: ApprovePaymentRequest) -> PaymentRequestView:
+    record = get_repository().approve(request_id, payload.approver, payload.reason)
+    if not record:
+        raise HTTPException(status_code=404, detail="payment request not found")
+    return to_view(record)
 
 
 @router.post("/payment-requests/{request_id}/execute", response_model=PaymentRequestView)
 def execute_payment_request(request_id: str) -> PaymentRequestView:
-    record = store.get(request_id)
+    repo = get_repository()
+    record = repo.get(request_id)
     if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
     if record.status != "APPROVED":
         raise HTTPException(status_code=409, detail="payment request is not approved")
     settings = get_settings()
     if not settings.keeperhub_api_key or not settings.keeperhub_wallet_address:
-        record.status = "EXECUTION_BLOCKED"
+        repo.mark_execution_blocked(request_id, "KeeperHub execution is not configured")
         raise HTTPException(status_code=503, detail="KeeperHub execution is not configured")
-    record.status = "CONFIRMING"
+    record = repo.mark_confirming(request_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="payment request not found")
     return to_view(record)
 
 
 @router.get("/payment-requests/{request_id}/audit", response_model=PaymentRequestView)
 def get_payment_audit(request_id: str) -> PaymentRequestView:
-    record = store.get(request_id)
+    record = get_repository().get(request_id)
     if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
     return to_view(record)
+
+
+@router.get("/execution/recoverable", response_model=list[PaymentRequestView])
+def list_recoverable_executions() -> list[PaymentRequestView]:
+    return [to_view(record) for record in get_repository().list_recoverable()]
