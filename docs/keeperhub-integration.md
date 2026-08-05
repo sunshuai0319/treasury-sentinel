@@ -24,11 +24,24 @@ The KeeperHub wallet has `EXECUTOR_ROLE` for normal approved payments and `GUARD
    executePaymentWithExpiry(address,address,uint256,bytes32,bytes32,bytes32,uint256)
    ```
 
-4. Submits the call through `KeeperHubClient.execute_contract_call()`.
+4. Submits the call through KeeperHub Direct Execution `POST /api/execute/contract-call`.
 5. Writes KeeperHub `execution_id`, status and transaction hash back to PostgreSQL.
 6. The execution monitor can later poll the execution status and update the request to `CONFIRMED` or `FAILED`.
 
 The calldata selector is `0xde62cb4b`.
+
+## Verified execution evidence
+
+| Field | Value |
+| --- | --- |
+| Payment request | `pay_9cd3b0932166` |
+| KeeperHub execution ID | `eaeyxg0igy4f9kovtib51` |
+| Status | `CONFIRMED` |
+| Transaction hash | `0xbcbf32c209b3f149408567720253129445c2c356221a4e412ca39d301531a47a` |
+| Receipt status | `0x1` |
+| Block number | `0x2b003d2` |
+
+Before broadcast, KeeperHub dry-run simulation returned `success=true`, `wouldRevert=false`, and gas estimate `148325`. The final receipt contains a MockUSDC `Transfer` log and a TreasuryGuard `PaymentExecuted` log emitted by `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`.
 
 ## Manual smoke test
 

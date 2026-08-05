@@ -27,7 +27,7 @@ async def test_recovery_updates_status_without_reexecuting_payment():
         assert execution_id == "exec_123"
         return KeeperHubExecution(
             execution_id=execution_id,
-            status="confirmed",
+            status="completed",
             transaction_hash="0xabc",
         )
 

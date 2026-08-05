@@ -158,7 +158,12 @@ async def execute_payment_request(request_id: str) -> PaymentRequestView:
     if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
     can_retry_legacy_confirming = record.status == "CONFIRMING" and not record.keeperhub_execution_id
-    if record.status != "APPROVED" and not can_retry_legacy_confirming:
+    can_retry_blocked_execution = (
+        record.status == "EXECUTION_BLOCKED"
+        and record.final_action == "APPROVE"
+        and not record.keeperhub_execution_id
+    )
+    if record.status != "APPROVED" and not can_retry_legacy_confirming and not can_retry_blocked_execution:
         raise HTTPException(status_code=409, detail="payment request is not approved")
     settings = get_settings()
     if (
@@ -185,7 +190,9 @@ async def execute_payment_request(request_id: str) -> PaymentRequestView:
         decision_hash=record.decision_hash,
     )
     try:
-        execution = await get_keeperhub_client().execute_contract_call(payload.keeperhub_payload())
+        execution = await get_keeperhub_client().execute_contract_call(
+            payload.keeperhub_payload(), idempotency_key=request_id
+        )
     except httpx.HTTPStatusError as exc:
         repo.mark_execution_blocked(request_id, f"KeeperHub rejected execution: {exc.response.status_code}")
         raise HTTPException(status_code=502, detail="KeeperHub rejected execution") from exc

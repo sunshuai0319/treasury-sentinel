@@ -294,7 +294,7 @@ class PaymentWorkflowRepository:
             )
             row.keeperhub_execution_id = execution_id
             row.transaction_hash = transaction_hash
-            if normalized_status in {"CONFIRMED", "SUCCESS", "SUCCEEDED"}:
+            if normalized_status in {"COMPLETED", "CONFIRMED", "SUCCESS", "SUCCEEDED"}:
                 row.status = "CONFIRMED"
             elif normalized_status in {"FAILED", "CANCELLED", "REVERTED"}:
                 row.status = "FAILED"

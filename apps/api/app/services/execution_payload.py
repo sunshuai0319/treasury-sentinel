@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -10,6 +11,23 @@ from app.services.decision_hash import stable_decision_hash
 EXECUTE_PAYMENT_WITH_EXPIRY_SIGNATURE = (
     "executePaymentWithExpiry(address,address,uint256,bytes32,bytes32,bytes32,uint256)"
 )
+TREASURY_GUARD_EXECUTE_ABI = [
+    {
+        "inputs": [
+            {"internalType": "contract IERC20", "name": "token", "type": "address"},
+            {"internalType": "address", "name": "recipient", "type": "address"},
+            {"internalType": "uint256", "name": "amount", "type": "uint256"},
+            {"internalType": "bytes32", "name": "invoiceHash", "type": "bytes32"},
+            {"internalType": "bytes32", "name": "vendorId", "type": "bytes32"},
+            {"internalType": "bytes32", "name": "decisionHash", "type": "bytes32"},
+            {"internalType": "uint256", "name": "expiresAt", "type": "uint256"},
+        ],
+        "name": "executePaymentWithExpiry",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    }
+]
 
 
 @dataclass(frozen=True)
@@ -32,12 +50,22 @@ class TreasuryExecutionPayload:
     def keeperhub_payload(self) -> dict[str, Any]:
         return {
             "chainId": self.chain_id,
-            "from": self.from_address,
-            "to": self.to,
-            "value": self.value,
-            "data": self.data,
             "contractAddress": self.contract_address,
-            "functionSignature": self.function_signature,
+            "functionName": "executePaymentWithExpiry",
+            "functionArgs": json.dumps(
+                [
+                    self.token_address,
+                    self.recipient_address,
+                    str(self.amount_units),
+                    self.invoice_hash,
+                    self.vendor_id_hash,
+                    self.decision_hash,
+                    str(self.expires_at),
+                ],
+                separators=(",", ":"),
+            ),
+            "abi": json.dumps(TREASURY_GUARD_EXECUTE_ABI, separators=(",", ":")),
+            "value": self.value,
             "arguments": {
                 "token": self.token_address,
                 "recipient": self.recipient_address,
@@ -50,6 +78,9 @@ class TreasuryExecutionPayload:
             "metadata": {
                 "app": "treasury-sentinel",
                 "purpose": "policy-approved-usdc-payment",
+                "from": self.from_address,
+                "calldata": self.data,
+                "functionSignature": self.function_signature,
             },
         }
 

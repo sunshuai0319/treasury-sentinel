@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     doubao_primary_temperature: float = 0.1
     doubao_critic_temperature: float = 0.1
     keeperhub_api_key: str
-    keeperhub_base_url: str = "https://api.keeperhub.com"
+    keeperhub_base_url: str = "https://app.keeperhub.com"
     keeperhub_wallet_address: str | None = None
     base_sepolia_rpc_url: str
     chain_id: int = Field(default=84532)

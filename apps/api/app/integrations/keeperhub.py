@@ -20,24 +20,38 @@ class KeeperHubClient:
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}"}
 
+    def _headers_with_idempotency(self, idempotency_key: str | None = None) -> dict[str, str]:
+        headers = self._headers()
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
+        return headers
+
     async def read_prechecks(self) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=15) as client:
-            response = await client.get(f"{self.base_url}/prechecks", headers=self._headers())
+            response = await client.get(f"{self.base_url}/api/chains", headers=self._headers())
             response.raise_for_status()
             return response.json()
 
     async def simulate_payment(self, payload: dict[str, Any]) -> dict[str, Any]:
+        simulation_payload = {**payload, "simulate": True}
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
-                f"{self.base_url}/simulations", json=payload, headers=self._headers()
+                f"{self.base_url}/api/execute/contract-call",
+                json=simulation_payload,
+                headers=self._headers(),
             )
             response.raise_for_status()
             return response.json()
 
-    async def execute_contract_call(self, payload: dict[str, Any]) -> KeeperHubExecution:
+    async def execute_contract_call(
+        self, payload: dict[str, Any], idempotency_key: str | None = None
+    ) -> KeeperHubExecution:
+        await self.simulate_payment(payload)
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(
-                f"{self.base_url}/executions", json=payload, headers=self._headers()
+                f"{self.base_url}/api/execute/contract-call",
+                json=payload,
+                headers=self._headers_with_idempotency(idempotency_key),
             )
             response.raise_for_status()
             return self._execution_from_json(response.json())
@@ -45,7 +59,7 @@ class KeeperHubClient:
     async def get_status(self, execution_id: str) -> KeeperHubExecution:
         async with httpx.AsyncClient(timeout=15) as client:
             response = await client.get(
-                f"{self.base_url}/executions/{execution_id}", headers=self._headers()
+                f"{self.base_url}/api/execute/{execution_id}/status", headers=self._headers()
             )
             response.raise_for_status()
             return self._execution_from_json(response.json())
@@ -56,7 +70,7 @@ class KeeperHubClient:
     @staticmethod
     def _execution_from_json(data: dict[str, Any]) -> KeeperHubExecution:
         return KeeperHubExecution(
-            execution_id=str(data.get("id") or data.get("execution_id")),
+            execution_id=str(data.get("executionId") or data.get("id") or data.get("execution_id")),
             status=str(data.get("status", "submitted")),
             transaction_hash=data.get("transactionHash") or data.get("transaction_hash"),
             error_code=data.get("errorCode") or data.get("error_code"),

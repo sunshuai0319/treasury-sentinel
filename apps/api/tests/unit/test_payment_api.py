@@ -149,10 +149,12 @@ def test_approved_payment_executes_through_keeperhub(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
     captured_payloads = []
+    captured_idempotency_keys = []
 
     class FakeKeeperHubClient:
-        async def execute_contract_call(self, payload):
+        async def execute_contract_call(self, payload, idempotency_key=None):
             captured_payloads.append(payload)
+            captured_idempotency_keys.append(idempotency_key)
             return KeeperHubExecution(
                 execution_id="exec_test_123",
                 status="submitted",
@@ -191,16 +193,17 @@ def test_approved_payment_executes_through_keeperhub(
     assert body["status"] == "CONFIRMING"
     assert body["keeperhub_execution_id"] == "exec_test_123"
     assert body["transaction_hash"] == "0xabc"
-    assert captured_payloads[0]["to"] == "0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3"
-    assert captured_payloads[0]["data"].startswith("0xde62cb4b")
+    assert captured_payloads[0]["contractAddress"] == "0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3"
+    assert captured_payloads[0]["functionName"] == "executePaymentWithExpiry"
     assert captured_payloads[0]["arguments"]["amount"] == "420000000"
+    assert captured_idempotency_keys == [request_id]
 
 
 def test_legacy_confirming_without_execution_id_can_retry_keeperhub_execution(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
     class FakeKeeperHubClient:
-        async def execute_contract_call(self, payload):
+        async def execute_contract_call(self, payload, idempotency_key=None):
             return KeeperHubExecution(execution_id="exec_retry_123", status="submitted")
 
     monkeypatch.setattr(
@@ -233,6 +236,47 @@ def test_legacy_confirming_without_execution_id_can_retry_keeperhub_execution(
 
     assert executed.status_code == 200
     assert executed.json()["keeperhub_execution_id"] == "exec_retry_123"
+
+
+def test_execution_blocked_without_execution_id_can_retry_after_configuration_fix(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    class FakeKeeperHubClient:
+        async def execute_contract_call(self, payload, idempotency_key=None):
+            return KeeperHubExecution(execution_id="exec_unblocked_123", status="submitted")
+
+    payload = {
+        "vendor_id": "vendor_demo",
+        "invoice_id": "inv_demo_001",
+        "amount_units": 420_000_000,
+        "recipient_address": "0x1111111111111111111111111111111111111111",
+    }
+    created = client.post("/api/payment-requests", json=payload, headers={"Idempotency-Key": "idem-blocked"})
+    request_id = created.json()["request_id"]
+    client.post(f"/api/payment-requests/{request_id}/analyze")
+    failed = client.post(f"/api/payment-requests/{request_id}/execute")
+    assert failed.status_code == 503
+
+    monkeypatch.setattr(
+        routes,
+        "get_settings",
+        lambda: Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            milvus_uri="http://localhost:19530",
+            ark_api_key="test",
+            keeperhub_api_key="kh_test",
+            keeperhub_wallet_address="0x7836A8deB72B27F94d0dF555E23d684aDC894Fe6",
+            treasury_guard_address="0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3",
+            demo_usdc_address="0x8eEf98476B371BF01D99CBCEA4D7745B49040c95",
+            base_sepolia_rpc_url="https://example.invalid",
+        ),
+    )
+    monkeypatch.setattr(routes, "get_keeperhub_client", lambda: FakeKeeperHubClient())
+
+    retried = client.post(f"/api/payment-requests/{request_id}/execute")
+
+    assert retried.status_code == 200
+    assert retried.json()["keeperhub_execution_id"] == "exec_unblocked_123"
 
 
 def test_recoverable_endpoint_returns_confirming_records(client: TestClient):

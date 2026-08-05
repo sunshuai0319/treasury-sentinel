@@ -12,15 +12,15 @@
 
 ## 当前实现进度（2026-08-06）
 
-本轮继续实现后，项目状态从“应用内 APPROVE 后仅标记 `CONFIRMING`”推进到“API 能构造 `TreasuryGuard.executePaymentWithExpiry(...)` calldata、提交 KeeperHub execution、写回 execution ID / transaction hash，并在分析链路接入实时政策检索的应用侧闭环”。已通过 Base Sepolia 公共 RPC 只读验证：`TreasuryGuard` `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3` 与 `MockUSDC` `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95` 均有链上代码，chainId 为 `84532`；KeeperHub EVM wallet `0x7836A8deB72B27F94d0dF555E23d684aDC894Fe6` 已具备 `EXECUTOR_ROLE` 与 `GUARDIAN_ROLE`。
+本轮继续实现后，项目状态从“应用内 APPROVE 后仅标记 `CONFIRMING`”推进到“API 能通过 KeeperHub Direct Execution 构造并提交 `TreasuryGuard.executePaymentWithExpiry(...)`，写回 execution ID / transaction hash，并在分析链路接入实时政策检索的应用侧闭环”。已通过 Base Sepolia 公共 RPC 只读验证：`TreasuryGuard` `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3` 与 `MockUSDC` `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95` 均有链上代码，chainId 为 `84532`；KeeperHub EVM wallet `0x7836A8deB72B27F94d0dF555E23d684aDC894Fe6` 已具备 `EXECUTOR_ROLE` 与 `GUARDIAN_ROLE`；真实付款请求 `pay_9cd3b0932166` 已通过 KeeperHub execution `eaeyxg0igy4f9kovtib51` 完成，交易哈希为 `0xbcbf32c209b3f149408567720253129445c2c356221a4e412ca39d301531a47a`。
 
 | 范围 | 进度 | 证据 |
 | --- | --- | --- |
 | 任务 8 PostgreSQL/规则 | 部分完成 | SQLAlchemy 已注册 12 张业务表；已新增 Alembic `001_core_tables`，并将当前 PostgreSQL 标记到该版本；`payment_requests.idempotency_key` 由数据库唯一约束保护；规则结果增加稳定 `rule_codes`。尚缺真实并发 PG 集成测试和规格表名的最终对齐。 |
 | 任务 9 TreasuryGuard | 基本完成 | 本地合约测试通过；增强版 `TreasuryGuard` 已重新部署到 Base Sepolia：`0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`；`MockUSDC` 为 `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95`；Guard 已注资 1000 MockUSDC，token 与 demo recipient 已白名单；KeeperHub wallet 已授予执行与暂停相关角色。BaseScan verify 仍缺 API key，不影响链上执行。 |
-| 任务 10 KeeperHub | 应用侧完成，待真实回执 | Adapter 已公开 `read_prechecks()`、`simulate_payment()`、`execute_contract_call()`、`get_status()`、`pause_treasury()`；`POST /api/payment-requests/{id}/execute` 现在会构造 `executePaymentWithExpiry` ABI calldata，提交 KeeperHub execution，并把 `keeperhub_execution_id`、`transaction_hash`、执行状态写入 PostgreSQL。剩余只需真实 KeeperHub API 返回 execution 后轮询到最终确认交易。 |
+| 任务 10 KeeperHub | 完成 | Adapter 已对齐官方 Direct Execution API：Base URL `https://app.keeperhub.com`，路径 `/api/execute/contract-call`，执行前先 `simulate=true` dry-run，再带 `Idempotency-Key` 广播；`POST /api/payment-requests/{id}/execute` 会构造 `executePaymentWithExpiry` 调用、提交 KeeperHub execution，并把 `keeperhub_execution_id`、`transaction_hash`、执行状态写入 PostgreSQL。真实证据：execution `eaeyxg0igy4f9kovtib51`，tx `0xbcbf32c209b3f149408567720253129445c2c356221a4e412ca39d301531a47a`。 |
 | 任务 11 Agent/LangGraph | 基本完成 | `TreasuryAgentGraph` 仍按 validate → retrieve → primary → critic → rules → human/execute → confirm 编排；付款分析 API 已接入 live Milvus/BGE retriever；Milvus/BGE 异常在 graph 内 fail-closed 到 `REVIEW`，避免 API 500；单元测试覆盖检索成功、检索失败和 Critic 不可降级。真实 Doubao smoke 仍需稳定录制响应样本。 |
-| 任务 12 FastAPI | 基本完成 | 付款请求 API 已覆盖幂等创建、查询、分析、人工审批、未审批执行阻断、真实 KeeperHub execution 提交、审计读取、SSE 事件流和恢复 worker 骨架；健康检查报告合约、USDC 与 KeeperHub 配置状态。长期后台调度仍可作为演示后优化项。 |
+| 任务 12 FastAPI | 基本完成 | 付款请求 API 已覆盖幂等创建、查询、分析、人工审批、未审批执行阻断、真实 KeeperHub execution 提交、审计读取、SSE 事件流和恢复 worker 骨架；健康检查报告合约、USDC 与 KeeperHub 配置状态；已兼容旧版 `CONFIRMING`/`EXECUTION_BLOCKED` 但无 execution ID 的历史记录重试。长期后台调度仍可作为演示后优化项。 |
 | 任务 13 前端控制台 | 部分完成 | 新增首页导航、Demo、Payments、Approvals、Audit、New Payment、Payment Detail 页面；新增类型安全 API client、SSE hook、DecisionTimeline 组件和 Playwright 场景规格；`npm run typecheck` 与 `npm run build` 通过。Playwright 因本机 Chromium 下载超时未完成浏览器实跑。 |
 | 任务 14 Demo 固化 | 部分完成 | 新增本地五场景 runner 和 `reset_demo_data.py`；reset 只清理带 `demo_run_id` 的付款请求相关记录；runner 可选 `--workflow` 走真实 repository 分析；生成 `docs/demo-script.md`，记录 Base Sepolia 合约地址和五场景决策证据；不伪造 KeeperHub execution ID/tx hash。尚缺真实链上 E2E。 |
 | 任务 15 Onboarding | 部分完成 | 新增 `starter-kit/scripts/check_environment.py`、双语 Quickstart、Troubleshooting、反馈报告、架构与安全文档；可检查 Python、Web3、模型、PG、Milvus、RPC、合约地址、USDC 与 KeeperHub 配置，并对缺失 KeeperHub fail-closed。最终验证中除 KeeperHub/live 外本地检查通过。 |
@@ -29,7 +29,7 @@
 
 ```text
 cd apps/api && uv run pytest -q
-结果：38 passed
+结果：41 passed
 
 cd apps/api && uv run ruff check app tests ../../database/seed_pg.py ../../database/migrations ../../knowledge/scripts/evaluate_retrieval.py ../../scripts/run_demo_scenarios.py ../../scripts/reset_demo_data.py && uv run mypy app
 结果：ruff 通过；mypy 通过

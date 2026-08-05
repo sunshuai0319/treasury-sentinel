@@ -27,7 +27,10 @@ def test_build_treasury_execution_payload_encodes_execute_payment_with_expiry():
 
     assert payload.data.startswith("0xde62cb4b")
     assert payload.chain_id == 84532
-    assert keeperhub_payload["to"] == "0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3"
+    assert keeperhub_payload["contractAddress"] == "0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3"
     assert keeperhub_payload["value"] == "0"
+    assert keeperhub_payload["functionName"] == "executePaymentWithExpiry"
+    assert "420000000" in keeperhub_payload["functionArgs"]
+    assert "executePaymentWithExpiry" in keeperhub_payload["abi"]
     assert keeperhub_payload["arguments"]["amount"] == "420000000"
-    assert keeperhub_payload["functionSignature"].startswith("executePaymentWithExpiry")
+    assert keeperhub_payload["metadata"]["functionSignature"].startswith("executePaymentWithExpiry")
