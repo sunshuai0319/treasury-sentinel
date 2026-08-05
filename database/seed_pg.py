@@ -8,7 +8,7 @@ from app.domain.tables import InvoiceTable, VendorTable
 
 def main() -> None:
     root = Path(__file__).parents[1]
-    settings = Settings()  # type: ignore[call-arg]
+    settings = Settings(_env_file=root / "apps/api/.env")  # type: ignore[call-arg]
     Session = session_factory(settings)
     engine = Session.kw["bind"]
     Base.metadata.create_all(engine)
@@ -46,4 +46,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
