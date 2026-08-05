@@ -136,3 +136,22 @@ def test_recoverable_endpoint_returns_confirming_records(client: TestClient):
     recoverable = client.get("/api/execution/recoverable")
     assert recoverable.status_code == 200
     assert [item["request_id"] for item in recoverable.json()] == [request_id]
+
+
+def test_sse_events_stream_agent_timeline(client: TestClient):
+    payload = {
+        "vendor_id": "vendor_demo",
+        "invoice_id": "inv_demo_001",
+        "amount_units": 420_000_000,
+        "recipient_address": "0x1111111111111111111111111111111111111111",
+    }
+    created = client.post("/api/payment-requests", json=payload, headers={"Idempotency-Key": "idem-4"})
+    request_id = created.json()["request_id"]
+    client.post(f"/api/payment-requests/{request_id}/analyze")
+
+    events = client.get(f"/api/payment-requests/{request_id}/events")
+    assert events.status_code == 200
+    assert "event: primary" in events.text
+    assert "event: critic" in events.text
+    assert "event: final" in events.text
+    assert "event: status" in events.text

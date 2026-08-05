@@ -13,6 +13,7 @@ from app.domain.tables import (
     AgentRunTable,
     ApprovalTable,
     AuditLogTable,
+    KeeperHubExecutionTable,
     PaymentRequestTable,
     RuleEvaluationTable,
     VendorTable,
@@ -238,6 +239,81 @@ class PaymentWorkflowRepository:
                 )
             ).all()
             return [record_from_table(row) for row in rows]
+
+    def timeline_events(self, request_id: str) -> list[dict]:
+        with self.session_factory() as session:
+            runs = session.scalars(
+                select(AgentRunTable)
+                .where(AgentRunTable.request_id == request_id)
+                .order_by(AgentRunTable.run_id)
+            ).all()
+            events: list[dict] = []
+            for run in runs:
+                for index, item in enumerate(run.timeline or []):
+                    events.append(
+                        {
+                            "id": f"{run.run_id}:{index}",
+                            "event": item.get("actor", "agent"),
+                            "data": item,
+                        }
+                    )
+            row = session.get(PaymentRequestTable, request_id)
+            if row:
+                events.append(
+                    {
+                        "id": f"{request_id}:status",
+                        "event": "status",
+                        "data": {
+                            "request_id": row.request_id,
+                            "status": row.status,
+                            "decision_hash": row.decision_hash,
+                            "keeperhub_execution_id": row.keeperhub_execution_id,
+                            "transaction_hash": row.transaction_hash,
+                        },
+                    }
+                )
+            return events
+
+    def update_execution_status(
+        self,
+        *,
+        request_id: str,
+        execution_id: str,
+        status: str,
+        transaction_hash: str | None,
+        error_code: str | None,
+    ) -> PaymentRequestRecord | None:
+        normalized_status = status.upper()
+        with self.session_factory() as session:
+            row = session.get(PaymentRequestTable, request_id)
+            if not row:
+                return None
+            session.merge(
+                KeeperHubExecutionTable(
+                    execution_id=execution_id,
+                    request_id=request_id,
+                    status=normalized_status,
+                    transaction_hash=transaction_hash,
+                    error_code=error_code,
+                )
+            )
+            row.keeperhub_execution_id = execution_id
+            row.transaction_hash = transaction_hash
+            if normalized_status in {"CONFIRMED", "SUCCESS", "SUCCEEDED"}:
+                row.status = "CONFIRMED"
+            elif normalized_status in {"FAILED", "CANCELLED", "REVERTED"}:
+                row.status = "FAILED"
+            else:
+                row.status = "CONFIRMING"
+            self._audit(
+                session,
+                row.request_id,
+                "keeperhub",
+                "payment_request.execution_status_updated",
+                {"execution_id": execution_id, "status": normalized_status},
+            )
+            session.commit()
+            return record_from_table(row)
 
     @staticmethod
     def _get_by_idempotency(session: Session, key: str) -> PaymentRequestTable | None:

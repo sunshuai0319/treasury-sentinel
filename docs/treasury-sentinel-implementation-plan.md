@@ -19,8 +19,8 @@
 | 任务 8 PostgreSQL/规则 | 部分完成 | SQLAlchemy 已注册 12 张业务表；已新增 Alembic `001_core_tables`，并将当前 PostgreSQL 标记到该版本；`payment_requests.idempotency_key` 由数据库唯一约束保护；规则结果增加稳定 `rule_codes`。尚缺真实并发 PG 集成测试和规格表名的最终对齐。 |
 | 任务 9 TreasuryGuard | 部分完成 | 本地合约测试通过；Base Sepolia 合约和 MockUSDC 已有部署地址与 `contracts/deployments/base-sepolia.json`。尚缺部署交易哈希补录、合约 verify、`GUARDIAN_ROLE`、token 白名单、每日/供应商额度等增强项。 |
 | 任务 10 KeeperHub | 部分完成但阻断 | Adapter 已公开 `read_prechecks()`、`simulate_payment()`、`execute_contract_call()`、`get_status()`、`pause_treasury()`，并测试 execution 字段映射。`.env` 中 `KEEPERHUB_API_KEY` 与 `KEEPERHUB_WALLET_ADDRESS` 为空，真实 KeeperHub 执行仍未完成。 |
-| 任务 12 FastAPI | 部分完成 | 新增最小付款请求 API：幂等创建、查询、分析、人工审批、未审批执行阻断、审计读取和可恢复执行查询；付款 workflow 已改为 PostgreSQL repository；健康检查报告合约、USDC 与 KeeperHub 配置状态。尚缺 SSE、真实 KeeperHub 执行和后台恢复 worker。 |
-| 任务 15 Onboarding | 部分完成 | 新增 `starter-kit/scripts/check_environment.py`，可检查 Python、Web3、模型、PG、Milvus、RPC、合约地址、USDC 与 KeeperHub 配置，并对缺失 KeeperHub fail-closed。尚缺双语 Quickstart、Troubleshooting、反馈报告和最终无阻断验证。 |
+| 任务 12 FastAPI | 部分完成 | 新增最小付款请求 API：幂等创建、查询、分析、人工审批、未审批执行阻断、审计读取、SSE 事件流和恢复 worker 骨架；付款 workflow 已改为 PostgreSQL repository；健康检查报告合约、USDC 与 KeeperHub 配置状态。尚缺真实 KeeperHub 执行与长期后台调度。 |
+| 任务 15 Onboarding | 部分完成 | 新增 `starter-kit/scripts/check_environment.py`、双语 Quickstart、Troubleshooting、反馈报告、架构与安全文档；可检查 Python、Web3、模型、PG、Milvus、RPC、合约地址、USDC 与 KeeperHub 配置，并对缺失 KeeperHub fail-closed。尚缺最终无阻断验证。 |
 
 最新验证：
 
@@ -39,6 +39,9 @@ cd apps/web && npm exec -- tsc --noEmit
 
 cd apps/api && uv run python ../../starter-kit/scripts/check_environment.py
 结果：除 keeperhub 缺少 api key/wallet 外，其余检查通过；脚本按设计返回非零状态
+
+PYTHONPATH=apps/api apps/api/.venv/bin/python knowledge/scripts/evaluate_retrieval.py --offline --golden knowledge/fixtures/rag-golden-set.json --output docs/rag-evaluation.md
+结果：20 queries；Recall@5、Citation、Version Filter、Fail-closed 均为 1.00
 ```
 
 ## 文件结构与职责
@@ -664,7 +667,7 @@ def test_low_score_result_requires_human_review(fake_repository):
 
 `retrieve_policy()` 必须增加有效期、类别和 ACTIVE 版本过滤，返回最多五条；最低可信分默认 0.60，阈值通过环境变量覆盖；每条结果用 PostgreSQL 的 `content_hash` 复核。
 
-- [ ] **步骤 3：实现评测 CLI**
+- [x] **步骤 3：实现评测 CLI**
 
 CLI 读取 `rag-golden-set.json`，计算 `Recall@5`、Citation Accuracy、Version Filter Accuracy 和 Fail-closed Rate，低于以下门槛时退出 1：
 
@@ -675,7 +678,7 @@ Version Filter Accuracy = 1.00
 Fail-closed Rate = 1.00
 ```
 
-- [ ] **步骤 4：运行评测并记录结果**
+- [x] **步骤 4：运行评测并记录结果**
 
 运行：`PYTHONPATH=apps/api apps/api/.venv/bin/python knowledge/scripts/evaluate_retrieval.py --golden knowledge/fixtures/rag-golden-set.json`
 
@@ -892,7 +895,7 @@ git commit -m "feat: add doubao primary and critic graph"
 
 实现规格中的十个端点。`analyze` 和 `execute` 接收 `Idempotency-Key`；审批绑定 request ID、金额、地址、decision hash、expires_at。
 
-- [ ] **步骤 3：实现恢复 Worker**
+- [x] **步骤 3：实现恢复 Worker**
 
 启动时查询 `SIMULATING`、`EXECUTING`、`CONFIRMING` 记录；按 execution ID 恢复；不得再次调用 `execute_payment()`。
 
@@ -1014,11 +1017,11 @@ git commit -m "test: verify five treasury demo scenarios"
 
 脚本检查 Python、Node、模型路径、PG、Milvus、RPC、KeeperHub 配置、合约角色和余额；输出表格并以非零状态表示阻断项。日志只显示密钥是否存在，不显示密钥值。
 
-- [ ] **步骤 2：编写双语 10–15 分钟 Quickstart**
+- [x] **步骤 2：编写双语 10–15 分钟 Quickstart**
 
 包含安装、环境变量、数据库 migration、政策摄取、RAG 评测、合约配置、API/前端启动和最小 KeeperHub 调用。
 
-- [ ] **步骤 3：填写真实反馈报告**
+- [x] **步骤 3：填写真实反馈报告**
 
 每项包含标题、环境、最小复现、预期、实际、日志、影响和建议；不编造未实际遇到的问题。
 

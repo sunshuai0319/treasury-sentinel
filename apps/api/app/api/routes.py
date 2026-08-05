@@ -1,6 +1,8 @@
+import json
 from functools import lru_cache
 
 from fastapi import APIRouter, Header, HTTPException, Response, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.agent.demo import run_demo_scenario
@@ -163,6 +165,26 @@ def get_payment_audit(request_id: str) -> PaymentRequestView:
     if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
     return to_view(record)
+
+
+@router.get("/payment-requests/{request_id}/events")
+def stream_payment_events(request_id: str) -> StreamingResponse:
+    if not get_repository().get(request_id):
+        raise HTTPException(status_code=404, detail="payment request not found")
+
+    def event_stream():
+        events = get_repository().timeline_events(request_id)
+        if not events:
+            yield f"event: status\ndata: {json.dumps({'request_id': request_id, 'status': 'SUBMITTED'})}\n\n"
+            return
+        for item in events:
+            yield (
+                f"id: {item['id']}\n"
+                f"event: {item['event']}\n"
+                f"data: {json.dumps(item['data'], ensure_ascii=False)}\n\n"
+            )
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.get("/execution/recoverable", response_model=list[PaymentRequestView])
