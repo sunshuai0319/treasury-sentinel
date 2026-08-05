@@ -55,3 +55,15 @@ Local contract logic can be checked with:
 cd contracts
 npm run demo:local
 ```
+
+The current Base Sepolia deployment evidence is stored in
+`contracts/deployments/base-sepolia.json`. To check local configuration without
+printing secrets:
+
+```bash
+cd apps/api
+uv run python ../../starter-kit/scripts/check_environment.py
+```
+
+The script exits non-zero until KeeperHub credentials and wallet address are
+configured, which keeps live execution fail-closed.

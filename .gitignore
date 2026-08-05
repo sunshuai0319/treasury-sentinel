@@ -12,5 +12,6 @@ coverage/
 artifacts/
 cache/
 typechain-types/
+tsconfig.tsbuildinfo
 .worktrees/
-
+.superpowers/

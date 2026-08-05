@@ -58,5 +58,15 @@ cd contracts
 npm run demo:local
 ```
 
+当前 Base Sepolia 部署证据记录在 `contracts/deployments/base-sepolia.json`。
+检查本地环境且不打印密钥：
+
+```bash
+cd apps/api
+uv run python ../../starter-kit/scripts/check_environment.py
+```
+
+在 KeeperHub key 和执行钱包地址未配置前，脚本会以非零状态退出，应用侧真实执行也会 fail-closed。
+
 项目方案见 `docs/treasury-sentinel-project-plan.md`，实施计划见
 `docs/treasury-sentinel-implementation-plan.md`。

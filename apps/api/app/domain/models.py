@@ -35,4 +35,4 @@ class RuleResult:
     decision: Decision
     reasons: list[str]
     policy_refs: list[str]
-
+    rule_codes: list[str]

@@ -10,6 +10,34 @@
 
 ---
 
+## 当前实现进度（2026-08-05）
+
+本轮继续实现后，项目状态从“本地固定 demo 原型”推进到“具备已部署测试网合约证据、最小付款工作流 API、业务事实表骨架和环境阻断检查的 MVP 骨架”。已通过 Base Sepolia 公共 RPC 只读验证：`TreasuryGuard` `0xb440Da2648E46027aDfBF06cd4c90e551110854B` 与 `MockUSDC` `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95` 均有链上代码，chainId 为 `84532`。
+
+| 范围 | 进度 | 证据 |
+| --- | --- | --- |
+| 任务 8 PostgreSQL/规则 | 部分完成 | SQLAlchemy 已注册 12 张业务表；`invoices.content_hash`、`payment_requests.idempotency_key`、`keeperhub_executions.execution_id` 具备唯一性；规则结果增加稳定 `rule_codes`。尚缺 Alembic migration 与真实并发 PG 集成测试。 |
+| 任务 9 TreasuryGuard | 部分完成 | 本地合约测试通过；Base Sepolia 合约和 MockUSDC 已有部署地址与 `contracts/deployments/base-sepolia.json`。尚缺部署交易哈希补录、合约 verify、`GUARDIAN_ROLE`、token 白名单、每日/供应商额度等增强项。 |
+| 任务 10 KeeperHub | 部分完成但阻断 | Adapter 已公开 `read_prechecks()`、`simulate_payment()`、`execute_contract_call()`、`get_status()`、`pause_treasury()`，并测试 execution 字段映射。`.env` 中 `KEEPERHUB_API_KEY` 与 `KEEPERHUB_WALLET_ADDRESS` 为空，真实 KeeperHub 执行仍未完成。 |
+| 任务 12 FastAPI | 部分完成 | 新增最小付款请求 API：幂等创建、分析、未审批执行阻断、审计读取；健康检查报告合约、USDC 与 KeeperHub 配置状态。尚缺 SSE、审批路由、持久化 repository 与恢复 worker。 |
+| 任务 15 Onboarding | 部分完成 | 新增 `starter-kit/scripts/check_environment.py`，可检查 Python、Web3、模型、PG、Milvus、RPC、合约地址、USDC 与 KeeperHub 配置，并对缺失 KeeperHub fail-closed。尚缺双语 Quickstart、Troubleshooting、反馈报告和最终无阻断验证。 |
+
+最新验证：
+
+```text
+cd apps/api && uv run pytest -q && uv run ruff check app tests && uv run mypy app
+结果：23 passed；ruff 通过；mypy 通过
+
+cd contracts && npm test && npm run compile
+结果：3 passing；compile 通过
+
+cd apps/web && npm exec -- tsc --noEmit
+结果：通过
+
+cd apps/api && uv run python ../../starter-kit/scripts/check_environment.py
+结果：除 keeperhub 缺少 api key/wallet 外，其余检查通过；脚本按设计返回非零状态
+```
+
 ## 文件结构与职责
 
 ```text
@@ -684,7 +712,7 @@ def test_rule_matrix(amount, wallet_match, is_duplicate, expected):
     assert result.action == expected
 ```
 
-- [ ] **步骤 2：实现最小规则和数据库唯一约束**
+- [x] **步骤 2：实现最小规则和数据库唯一约束**
 
 模型必须包含设计规格中的十二张表；`invoices.invoice_hash`、`payment_requests.idempotency_key` 和 `keeperhub_executions.execution_id` 唯一。规则结果必须列出稳定的 `rule_code`，例如 `DUPLICATE_INVOICE`、`WALLET_MISMATCH`、`AMOUNT_REQUIRES_APPROVAL`。
 
@@ -771,7 +799,7 @@ async def test_adapter_maps_execution_status(fake_client):
     assert result.transaction_hash == "0xabc"
 ```
 
-- [ ] **步骤 2：实现 KeeperHub Client 和错误映射**
+- [x] **步骤 2：实现 KeeperHub Client 和错误映射**
 
 Adapter 公开 `read_prechecks()`、`simulate_payment()`、`execute_payment()`、`get_status()`、`pause_treasury()`；网络超时映射为 `RETRYABLE`，参数/权限错误映射为 `TERMINAL`，未知状态不得映射为成功。
 
@@ -853,11 +881,11 @@ git commit -m "feat: add doubao primary and critic graph"
 - 创建：`apps/api/app/workers/execution_monitor.py`
 - 测试：`apps/api/tests/integration/test_payment_api.py`
 
-- [ ] **步骤 1：编写 API 状态转换测试**
+- [x] **步骤 1：编写 API 状态转换测试**
 
 测试创建请求返回 201、重复 idempotency key 返回同一请求、未审批请求不能执行、SSE 按顺序输出 Agent 节点、未知 KeeperHub 状态保持 `CONFIRMING`。
 
-- [ ] **步骤 2：实现 API**
+- [x] **步骤 2：实现 API**
 
 实现规格中的十个端点。`analyze` 和 `execute` 接收 `Idempotency-Key`；审批绑定 request ID、金额、地址、decision hash、expires_at。
 
@@ -979,7 +1007,7 @@ git commit -m "test: verify five treasury demo scenarios"
 - 创建：`docs/architecture.md`
 - 修改：`README.md`
 
-- [ ] **步骤 1：实现环境检查脚本**
+- [x] **步骤 1：实现环境检查脚本**
 
 脚本检查 Python、Node、模型路径、PG、Milvus、RPC、KeeperHub 配置、合约角色和余额；输出表格并以非零状态表示阻断项。日志只显示密钥是否存在，不显示密钥值。
 

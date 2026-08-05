@@ -55,21 +55,21 @@ def run_demo_scenario(scenario: str) -> PaymentRun:
     timeline = [
         AgentDecision(
             actor="primary",
-            action=rule.decision,
+            action=rule.decision.value,
             confidence=0.82,
             reasons=rule.reasons,
             policy_refs=rule.policy_refs,
         ),
         AgentDecision(
             actor="critic",
-            action=final,
+            action=final.value,
             confidence=0.9,
             reasons=["critic checked deterministic rules and policy citations"],
             policy_refs=rule.policy_refs,
         ),
         AgentDecision(
             actor="final",
-            action=final,
+            action=final.value,
             confidence=1.0,
             reasons=rule.reasons if final != Decision.PAUSE else ["address anomaly threshold reached"],
             policy_refs=rule.policy_refs if final != Decision.PAUSE else ["1.1 地址异常"],
@@ -80,7 +80,6 @@ def run_demo_scenario(scenario: str) -> PaymentRun:
         scenario=scenario,
         invoice_id=invoice.invoice_id,
         vendor_id=vendor.vendor_id,
-        final_action=final,
+        final_action=final.value,
         timeline=timeline,
     )
-
