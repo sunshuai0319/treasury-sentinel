@@ -36,6 +36,12 @@ This file is generated from the deterministic local demo runner.
    - Final reasons: address anomaly threshold reached
    - Policy refs: 1.1 地址异常
 
+## Local API workflow assertions
+
+- `normal` request `pay_91c46ba7ef97` → `APPROVE`
+- `address_mismatch` request `pay_da38d2ecddc8` → `REJECT`
+- `over_limit` request `pay_29c10cf0b020` → `REVIEW`
+
 ## KeeperHub / transaction evidence
 
 Live KeeperHub execution is intentionally blocked until `KEEPERHUB_API_KEY` and `KEEPERHUB_WALLET_ADDRESS` are configured. Do not replace this section with mock tx hashes.
