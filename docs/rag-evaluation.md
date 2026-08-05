@@ -1,8 +1,6 @@
 # RAG Evaluation
 
-This report records the offline policy citation gate. It verifies that the golden-set
-expected policy documents, versions, and sections are present before live Milvus
-evaluation is trusted.
+This report records the live Milvus retrieval gate. It embeds each golden-set query with the configured local BGE model and searches the configured Milvus collection.
 
 Queries: 20
 
