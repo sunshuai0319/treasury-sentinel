@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "typecheck": "tsc --noEmit",
     "lint": "next lint"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
     "@types/react-dom": "^19.1.6",
     "eslint": "^9.32.0",
     "eslint-config-next": "^15.5.0",
+    "@playwright/test": "^1.54.2",
     "typescript": "^5.9.2"
   }
 }

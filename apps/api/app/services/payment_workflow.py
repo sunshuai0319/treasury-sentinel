@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.agent.state import AgentDecision, PaymentRun
+from app.agent.graph import TreasuryAgentGraph
+from app.agent.state import PaymentRun
 from app.domain.models import Invoice, Vendor
 from app.domain.tables import (
     AgentRunTable,
@@ -120,31 +121,23 @@ class PaymentWorkflowRepository:
                 recipient_address=row.recipient_address,
                 content_hash=stable_decision_hash({"invoice_id": row.invoice_id}),
             )
+            graph_run = TreasuryAgentGraph().run(
+                {
+                    "request_id": row.request_id,
+                    "scenario": "workflow",
+                    "invoice_id": invoice.invoice_id,
+                    "vendor_id": vendor.vendor_id,
+                    "amount_units": invoice.amount_units,
+                    "vendor_status": vendor.status,
+                    "vendor_wallet": vendor.wallet_address,
+                    "recipient_address": invoice.recipient_address,
+                    "category": invoice.category,
+                    "wallet_changed_recently": vendor.wallet_changed_recently,
+                }
+            )
             rule = evaluate_payment(vendor, invoice)
-            final_action = cast(Literal["APPROVE", "REVIEW", "REJECT", "PAUSE"], rule.decision.value)
-            timeline = [
-                AgentDecision(
-                    actor="primary",
-                    action=final_action,
-                    confidence=0.82,
-                    reasons=rule.reasons,
-                    policy_refs=rule.policy_refs,
-                ),
-                AgentDecision(
-                    actor="critic",
-                    action="REVIEW" if final_action == "APPROVE" else final_action,
-                    confidence=0.76,
-                    reasons=[*rule.reasons, f"rule_codes={','.join(rule.rule_codes)}"],
-                    policy_refs=rule.policy_refs,
-                ),
-                AgentDecision(
-                    actor="final",
-                    action=final_action,
-                    confidence=0.9,
-                    reasons=rule.reasons,
-                    policy_refs=rule.policy_refs,
-                ),
-            ]
+            final_action = cast(Literal["APPROVE", "REVIEW", "REJECT", "PAUSE"], graph_run.final_action)
+            timeline = graph_run.timeline
             row.final_action = final_action
             row.status = "APPROVED" if final_action == "APPROVE" else final_action
             row.decision_hash = stable_decision_hash(

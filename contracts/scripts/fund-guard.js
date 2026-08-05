@@ -25,6 +25,9 @@ async function main() {
   const usdc = await ethers.getContractAt("MockUSDC", mockUsdcAddress);
   const mintTx = await usdc.mint(treasuryGuardAddress, units(mintAmount));
   await mintTx.wait();
+  const guard = await ethers.getContractAt("TreasuryGuard", treasuryGuardAddress);
+  const allowTokenTx = await guard.setTokenAllowed(mockUsdcAddress, true);
+  await allowTokenTx.wait();
   const guardBalance = await usdc.balanceOf(treasuryGuardAddress);
 
   console.log(
@@ -35,6 +38,7 @@ async function main() {
       mintedAmountUSDC: mintAmount,
       guardBalanceUSDC: ethers.formatUnits(guardBalance, 6),
       mintTx: mintTx.hash,
+      allowTokenTx: allowTokenTx.hash,
     })
   );
 }

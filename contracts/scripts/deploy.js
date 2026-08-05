@@ -11,6 +11,11 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   const guard = await ethers.deployContract("TreasuryGuard", [deployer.address, 500_000_000]);
   await guard.waitForDeployment();
+  const demoUsdcAddress = process.env.MOCK_USDC_ADDRESS || process.env.DEMO_USDC_ADDRESS;
+  if (demoUsdcAddress) {
+    const allowTokenTx = await guard.setTokenAllowed(demoUsdcAddress, true);
+    await allowTokenTx.wait();
+  }
   const deploymentTx = guard.deploymentTransaction();
   const receipt = deploymentTx ? await deploymentTx.wait() : null;
   const network = await ethers.provider.getNetwork();
@@ -24,6 +29,8 @@ async function main() {
     deploymentTxHash: deploymentTx ? deploymentTx.hash : null,
     deploymentBlockNumber: receipt ? receipt.blockNumber : null,
     maxSinglePaymentUnits: "500000000",
+    dailyLimitUnits: "2000000000",
+    allowedTokenSeeded: demoUsdcAddress || null,
     abiHash: artifactHash(artifact),
   };
   const outputDir = path.join(__dirname, "..", "deployments");

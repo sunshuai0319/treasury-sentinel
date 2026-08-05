@@ -12,29 +12,35 @@
 
 ## 当前实现进度（2026-08-05）
 
-本轮继续实现后，项目状态从“本地固定 demo 原型”推进到“具备已部署测试网合约证据、最小付款工作流 API、业务事实表骨架和环境阻断检查的 MVP 骨架”。已通过 Base Sepolia 公共 RPC 只读验证：`TreasuryGuard` `0xb440Da2648E46027aDfBF06cd4c90e551110854B` 与 `MockUSDC` `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95` 均有链上代码，chainId 为 `84532`。
+本轮继续实现后，项目状态从“本地固定 demo 原型”推进到“具备已部署测试网合约证据、最小付款工作流 API、LangGraph 决策编排、合约本地安全约束、前端多页面骨架、业务事实表骨架和环境阻断检查的 MVP 骨架”。已通过 Base Sepolia 公共 RPC 只读验证：`TreasuryGuard` `0xb440Da2648E46027aDfBF06cd4c90e551110854B` 与 `MockUSDC` `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95` 均有链上代码，chainId 为 `84532`。
 
 | 范围 | 进度 | 证据 |
 | --- | --- | --- |
 | 任务 8 PostgreSQL/规则 | 部分完成 | SQLAlchemy 已注册 12 张业务表；已新增 Alembic `001_core_tables`，并将当前 PostgreSQL 标记到该版本；`payment_requests.idempotency_key` 由数据库唯一约束保护；规则结果增加稳定 `rule_codes`。尚缺真实并发 PG 集成测试和规格表名的最终对齐。 |
-| 任务 9 TreasuryGuard | 部分完成 | 本地合约测试通过；Base Sepolia 合约和 MockUSDC 已有部署地址与 `contracts/deployments/base-sepolia.json`。尚缺部署交易哈希补录、合约 verify、`GUARDIAN_ROLE`、token 白名单、每日/供应商额度等增强项。 |
+| 任务 9 TreasuryGuard | 部分完成 | 本地合约测试通过；Base Sepolia 合约和 MockUSDC 已有部署地址与 `contracts/deployments/base-sepolia.json`；合约新增 `GUARDIAN_ROLE`、token 白名单、收款地址白名单、重复发票、单笔额度、每日额度、供应商额度与重入保护测试。尚缺将增强版重新部署/verify 到 Base Sepolia、部署交易哈希补录和决策过期约束。 |
 | 任务 10 KeeperHub | 部分完成但阻断 | Adapter 已公开 `read_prechecks()`、`simulate_payment()`、`execute_contract_call()`、`get_status()`、`pause_treasury()`，并测试 execution 字段映射。`.env` 中 `KEEPERHUB_API_KEY` 与 `KEEPERHUB_WALLET_ADDRESS` 为空，真实 KeeperHub 执行仍未完成。 |
-| 任务 12 FastAPI | 部分完成 | 新增最小付款请求 API：幂等创建、查询、分析、人工审批、未审批执行阻断、审计读取、SSE 事件流和恢复 worker 骨架；付款 workflow 已改为 PostgreSQL repository；健康检查报告合约、USDC 与 KeeperHub 配置状态。尚缺真实 KeeperHub 执行与长期后台调度。 |
-| 任务 15 Onboarding | 部分完成 | 新增 `starter-kit/scripts/check_environment.py`、双语 Quickstart、Troubleshooting、反馈报告、架构与安全文档；可检查 Python、Web3、模型、PG、Milvus、RPC、合约地址、USDC 与 KeeperHub 配置，并对缺失 KeeperHub fail-closed。尚缺最终无阻断验证。 |
+| 任务 11 Agent/LangGraph | 部分完成 | 新增 `TreasuryAgentGraph`，按 validate → retrieve → primary → critic → rules → human/execute → confirm 编排；Milvus 检索异常 fail-closed 到 `REVIEW`；付款分析 API 已使用该 graph。尚缺 Doubao 真实结构化响应、token usage 记录和录制响应测试集。 |
+| 任务 12 FastAPI | 部分完成 | 新增最小付款请求 API：幂等创建、查询、分析、人工审批、未审批执行阻断、审计读取、SSE 事件流和恢复 worker 骨架；付款 workflow 已改为 PostgreSQL repository 与 LangGraph；健康检查报告合约、USDC 与 KeeperHub 配置状态。尚缺真实 KeeperHub 执行与长期后台调度。 |
+| 任务 13 前端控制台 | 部分完成 | 新增首页导航、Demo、Payments、Approvals、Audit 页面；新增类型安全 API client、SSE hook、DecisionTimeline 组件和 Playwright 场景规格；`tsc --noEmit` 通过。尚缺在浏览器中跑完整 Playwright E2E 和真实后端联动确认。 |
+| 任务 14 Demo 固化 | 部分完成 | 新增本地五场景 runner，生成 `docs/demo-script.md`，记录 Base Sepolia 合约地址和五场景决策证据；不伪造 KeeperHub execution ID/tx hash。尚缺 demo reset 脚本与真实链上 E2E。 |
+| 任务 15 Onboarding | 部分完成 | 新增 `starter-kit/scripts/check_environment.py`、双语 Quickstart、Troubleshooting、反馈报告、架构与安全文档；可检查 Python、Web3、模型、PG、Milvus、RPC、合约地址、USDC 与 KeeperHub 配置，并对缺失 KeeperHub fail-closed。最终验证中除 KeeperHub/live 外本地检查通过。 |
 
 最新验证：
 
 ```text
-cd apps/api && uv run pytest -q && uv run ruff check app tests ../../database/seed_pg.py ../../database/migrations && uv run mypy app
-结果：25 passed；ruff 通过；mypy 通过
+cd apps/api && uv run pytest -q && uv run ruff check app tests ../../database/seed_pg.py ../../database/migrations ../../knowledge/scripts/evaluate_retrieval.py ../../scripts/run_demo_scenarios.py && uv run mypy app
+结果：30 passed；ruff 通过；mypy 通过
 
 cd apps/api && DATABASE_URL=sqlite:////tmp/test.db uv run alembic upgrade head && DATABASE_URL=sqlite:////tmp/test.db uv run alembic downgrade base
 结果：迁移 upgrade/downgrade 通过；当前 PostgreSQL 已 `alembic stamp head` 至 `001_core_tables`
 
 cd contracts && npm test && npm run compile
-结果：3 passing；compile 通过
+结果：4 passing；compile 通过
 
-cd apps/web && npm exec -- tsc --noEmit
+cd contracts && npx hardhat run scripts/local-payment-demo.js
+结果：本地 MockUSDC 付款成功；重复发票、未白名单收款人、超单笔额度、暂停状态均按预期 revert
+
+cd apps/web && npm run typecheck
 结果：通过
 
 cd apps/api && uv run python ../../starter-kit/scripts/check_environment.py
@@ -42,6 +48,9 @@ cd apps/api && uv run python ../../starter-kit/scripts/check_environment.py
 
 PYTHONPATH=apps/api apps/api/.venv/bin/python knowledge/scripts/evaluate_retrieval.py --offline --golden knowledge/fixtures/rag-golden-set.json --output docs/rag-evaluation.md
 结果：20 queries；Recall@5、Citation、Version Filter、Fail-closed 均为 1.00
+
+PYTHONPATH=apps/api apps/api/.venv/bin/python scripts/run_demo_scenarios.py
+结果：生成 docs/demo-script.md；5 个固定场景均输出预期决策；KeeperHub/tx 证据保持阻断说明
 ```
 
 ## 文件结构与职责
@@ -752,17 +761,17 @@ git commit -m "feat: add payment ledger and deterministic rules"
 - 创建：`contracts/scripts/grant-keeperhub-role.ts`
 - 创建：`contracts/hardhat.config.ts`
 
-- [ ] **步骤 1：先写失败的合约测试**
+- [x] **步骤 1：先写失败的合约测试**
 
 测试角色、暂停、Token/供应商白名单、重复发票、决策过期、单笔/供应商/每日额度、事件字段和重入保护。
 
-- [ ] **步骤 2：运行并确认失败**
+- [x] **步骤 2：运行并确认失败**
 
 运行：`cd contracts && pnpm hardhat test`
 
 预期：编译失败，因为 `TreasuryGuard.sol` 不存在。
 
-- [ ] **步骤 3：实现最小合约**
+- [x] **步骤 3：实现最小合约**
 
 实现设计中的 `executePayment` 签名和三个角色；所有金额使用 Token 最小单位；日期桶使用 `block.timestamp / 1 days`；先写 `paidInvoices[invoiceHash] = true` 再转账。
 
@@ -777,7 +786,7 @@ TREASURY_CONTRACT_ADDRESS=$(jq -r .address deployments/base-sepolia.json)
 pnpm hardhat verify --network baseSepolia "$TREASURY_CONTRACT_ADDRESS"
 ```
 
-预期：测试全部 PASS，`deployments/base-sepolia.json` 保存地址、chainId、部署交易和 ABI 哈希。
+当前：本地测试与编译 PASS；增强版尚未重新部署/verify 到 Base Sepolia。
 
 - [ ] **步骤 5：提交**
 
@@ -837,7 +846,7 @@ git commit -m "feat: execute treasury payments through keeperhub"
 - 创建：`apps/api/app/agent/graph.py`
 - 测试：`apps/api/tests/unit/agent/test_decision_routing.py`
 
-- [ ] **步骤 1：定义严格输出 Schema 与失败测试**
+- [x] **步骤 1：定义严格输出 Schema 与失败测试**
 
 ```python
 class PrimaryDecision(BaseModel):
@@ -859,7 +868,7 @@ class CriticDecision(BaseModel):
 
 使用 `ARK_BASE_URL`、`ARK_API_KEY`、`DOUBAO_MODEL`；temperature 0.1；要求 JSON/Function Calling 输出；Pydantic 失败最多重试一次。记录模型名、请求 ID、耗时和 token usage，不记录 API Key。
 
-- [ ] **步骤 3：实现 LangGraph 节点与路由**
+- [x] **步骤 3：实现 LangGraph 节点与路由**
 
 节点顺序固定为 validate → retrieve → primary → critic → rules → human/execute → confirm。规则节点拥有最终自动执行权；Milvus/Doubao 异常进入人工审核。
 
@@ -867,7 +876,7 @@ class CriticDecision(BaseModel):
 
 运行：`cd apps/api && uv run pytest tests/unit/agent -v`
 
-预期：正常、Critic 挑战、Schema 失败、RAG 低分四个场景全部 PASS。
+当前：本地 LangGraph routing/fail-closed 单测 PASS；尚缺 Doubao 录制响应测试。
 
 - [ ] **步骤 5：提交**
 
@@ -931,19 +940,19 @@ git commit -m "feat: expose payment workflow api"
 - 创建：`apps/web/lib/api/client.ts`
 - 测试：`apps/web/tests/payment-flow.spec.ts`
 
-- [ ] **步骤 1：编写失败的 Playwright 场景**
+- [x] **步骤 1：编写失败的 Playwright 场景**
 
 测试选择“正常付款”预置数据、提交、看到 Primary/Critic/Rules/Simulation/Confirmed 六个阶段和交易链接。
 
-- [ ] **步骤 2：实现类型安全 API Client 与 SSE Hook**
+- [x] **步骤 2：实现类型安全 API Client 与 SSE Hook**
 
 Client 只接受后端 OpenAPI 对应类型；SSE 断开最多重连三次，重连使用最后 event ID。
 
-- [ ] **步骤 3：实现五个页面和固定场景按钮**
+- [x] **步骤 3：实现五个页面和固定场景按钮**
 
 页面不加入钱包连接、图表库、主题系统或复杂动画。每个决策节点显示状态、耗时、证据和失败原因。
 
-- [ ] **步骤 4：运行前端测试**
+- [x] **步骤 4：运行前端测试**
 
 运行：
 
@@ -953,6 +962,8 @@ pnpm lint
 pnpm typecheck
 pnpm test:e2e
 ```
+
+当前：`npm run typecheck` PASS；已新增 Playwright 场景规格，尚未在本轮安装浏览器并跑完整 E2E。
 
 预期：全部 PASS。
 
@@ -975,7 +986,7 @@ git commit -m "feat: add treasury decision console"
 
 重置只清理带 `demo_run_id` 的数据库记录；不得删除整个数据库或 Milvus Collection；同一 seed 生成同样的供应商和请求。
 
-- [ ] **步骤 2：实现五场景 runner**
+- [x] **步骤 2：实现五场景 runner**
 
 顺序运行 NORMAL、DUPLICATE、WALLET_CHANGED、OVER_LIMIT、INCIDENT_PAUSE；每个场景断言最终状态和预期 rule code。
 
@@ -990,9 +1001,9 @@ PYTHONPATH=apps/api apps/api/.venv/bin/python scripts/run_demo_scenarios.py --li
 
 预期：正常付款和审批后付款产生真实 tx hash；其余场景不产生未授权付款；暂停场景产生 `Paused` 事件。
 
-- [ ] **步骤 4：记录可验证证据**
+- [x] **步骤 4：记录可验证证据**
 
-`docs/demo-script.md` 写入合约地址、execution ID、tx hash、区块浏览器链接、演示顺序和网络失败时的已确认备用证据。
+`docs/demo-script.md` 写入合约地址、演示顺序和本地可验证决策证据；由于 KeeperHub 阻断，不写入伪造 execution ID 或 tx hash。
 
 - [ ] **步骤 5：提交**
 
@@ -1038,7 +1049,7 @@ PYTHONPATH=apps/api apps/api/.venv/bin/python knowledge/scripts/evaluate_retriev
 PYTHONPATH=apps/api apps/api/.venv/bin/python starter-kit/scripts/check_environment.py
 ```
 
-预期：全部测试通过，RAG 指标达到任务 7 门槛，环境检查无阻断项。
+当前：API、合约、前端 typecheck、RAG 离线评测和本地 demo runner 均通过；环境检查仍因 KeeperHub 配置缺失按设计返回阻断。
 
 - [ ] **步骤 5：审查 Git 历史并提交**
 

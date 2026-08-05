@@ -32,6 +32,7 @@ async function main() {
   await guard.waitForDeployment();
 
   await (await usdc.mint(await guard.getAddress(), 1_000_000_000)).wait();
+  await (await guard.setTokenAllowed(await usdc.getAddress(), true)).wait();
   await (await guard.setRecipientAllowed(recipient.address, true)).wait();
 
   const beforeBalance = await usdc.balanceOf(recipient.address);
