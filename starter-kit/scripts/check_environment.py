@@ -9,7 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "apps" / "api"))
 
-from app.config import get_settings
+from app.config import Settings
 
 
 @dataclass
@@ -32,7 +32,7 @@ def port_open(uri: str) -> bool:
 
 
 def main() -> int:
-    settings = get_settings()
+    settings = Settings(_env_file=REPO_ROOT / "apps/api/.env")  # type: ignore[call-arg]
     checks = [
         Check("python", sys.version_info >= (3, 12), sys.version.split()[0]),
         Check("web3", importlib.util.find_spec("web3") is not None, "package importable"),

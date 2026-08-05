@@ -46,7 +46,7 @@ async function main() {
     argValue("--wallet") ||
     process.env.KEEPERHUB_WALLET_ADDRESS ||
     process.env.EXECUTOR_WALLET_ADDRESS;
-  const grantGuardian = process.argv.includes("--guardian");
+  const grantGuardian = process.argv.includes("--guardian") || process.env.GRANT_GUARDIAN_ROLE === "true";
 
   if (!wallet) {
     throw new Error("Missing KeeperHub wallet. Set KEEPERHUB_WALLET_ADDRESS or pass --wallet 0x...");
