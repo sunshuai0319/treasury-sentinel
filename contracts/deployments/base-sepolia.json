@@ -1,14 +1,13 @@
 {
   "contract": "TreasuryGuard",
-  "address": "0xb440Da2648E46027aDfBF06cd4c90e551110854B",
-  "mockUSDC": "0x8eEf98476B371BF01D99CBCEA4D7745B49040c95",
+  "address": "0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3",
   "deployer": "0x5e7A3a87FAd073C7c4D8f1596866bA9433E5CEe3",
   "chainId": 84532,
-  "network": "base-sepolia",
-  "deploymentTxHash": null,
-  "deploymentBlockNumber": null,
+  "network": "baseSepolia",
+  "deploymentTxHash": "0x294dbc64ed6c6738cd0db2fbf029966e45307d611d30f8b230cb202c746cfe89",
+  "deploymentBlockNumber": 45087829,
   "maxSinglePaymentUnits": "500000000",
-  "abiHash": "0x5f68869b846355b12ff38b9fbbb54760b0ee27e70cff4c652dc4e35858d5bc3a",
-  "explorerUrl": "https://sepolia.basescan.org/address/0xb440Da2648E46027aDfBF06cd4c90e551110854B",
-  "note": "Deployment address confirmed from Codex thread 019fcc2a-a568-7111-a923-af460afb54ed and local .env. Re-run scripts/deploy.js to refresh tx hash and block number."
+  "dailyLimitUnits": "2000000000",
+  "allowedTokenSeeded": "0x8eEf98476B371BF01D99CBCEA4D7745B49040c95",
+  "abiHash": "0x814f75e2ed4d1f989a5e807ca203e96b9e8b66d20f4950d2e5aa606f0cd3882d"
 }

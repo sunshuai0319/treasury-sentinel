@@ -7,6 +7,7 @@
     "compile": "hardhat compile",
     "deploy:mock-usdc:base-sepolia": "hardhat run scripts/deploy-mock-usdc.js --network baseSepolia",
     "fund:guard:base-sepolia": "hardhat run scripts/fund-guard.js --network baseSepolia",
+    "seed:recipient:base-sepolia": "hardhat run scripts/seed-recipient.js --network baseSepolia",
     "demo:local": "hardhat run scripts/local-payment-demo.js",
     "demo:localhost": "hardhat run scripts/local-payment-demo.js --network localhost"
   },

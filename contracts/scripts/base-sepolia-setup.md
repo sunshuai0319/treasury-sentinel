@@ -33,3 +33,16 @@ npm run fund:guard:base-sepolia
 
 This mints demo USDC directly to the deployed `TreasuryGuard` contract.
 
+## Seed demo recipient whitelist
+
+```bash
+npm run seed:recipient:base-sepolia
+```
+
+By default this allows the local API demo vendor wallet
+`0x1111111111111111111111111111111111111111`. To allow a real supplier wallet,
+run:
+
+```bash
+npx hardhat run scripts/seed-recipient.js --network baseSepolia -- --recipient 0x...
+```
