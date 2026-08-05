@@ -33,20 +33,24 @@ TDecision = TypeVar("TDecision", bound=BaseModel)
 
 
 class DoubaoClient:
-    def __init__(self, api_key: str, base_url: str, model: str):
+    def __init__(self, api_key: str, base_url: str, model: str, timeout_seconds: float = 120.0):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.timeout_seconds = timeout_seconds
 
-    async def chat_json(self, messages: list[dict[str, str]], temperature: float = 0.1) -> dict[str, Any]:
+    async def chat_json(
+        self, messages: list[dict[str, str]], temperature: float = 0.1, max_tokens: int = 256
+    ) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {self.api_key}"}
         payload = {
             "model": self.model,
             "messages": messages,
             "temperature": temperature,
+            "max_tokens": max_tokens,
             "response_format": {"type": "json_object"},
         }
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
             response = await client.post(f"{self.base_url}/chat/completions", json=payload, headers=headers)
             response.raise_for_status()
             return response.json()
@@ -56,6 +60,7 @@ class DoubaoClient:
         messages: list[dict[str, str]],
         schema: type[TDecision],
         temperature: float = 0.1,
+        max_tokens: int = 256,
     ) -> tuple[TDecision, DoubaoCallMetadata]:
         last_error: ValidationError | json.JSONDecodeError | KeyError | TypeError | None = None
         started = time.perf_counter()
@@ -73,7 +78,7 @@ class DoubaoClient:
                         ),
                     },
                 ]
-            data = await self.chat_json(request_messages, temperature)
+            data = await self.chat_json(request_messages, temperature, max_tokens=max_tokens)
             try:
                 content = data["choices"][0]["message"]["content"]
                 parsed = json.loads(content) if isinstance(content, str) else content

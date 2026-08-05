@@ -2,26 +2,26 @@
 
 > **面向 AI 代理的工作者：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 逐任务实现此计划。步骤使用复选框（`- [ ]`）语法来跟踪进度。
 
-**目标：** 构建一个使用 PostgreSQL、Milvus、本地 BGE 嵌入、Doubao Seed 2.1 Pro 与 KeeperHub 的可验证自主财资 Agent，并在 Base Sepolia 完成真实测试 USDC 付款。
+**目标：** 构建一个使用 PostgreSQL、Milvus、本地 BGE 嵌入、Doubao Seed 2.0 Mini 与 KeeperHub 的可验证自主财资 Agent，并在 Base Sepolia 完成真实测试 USDC 付款。
 
 **架构：** Next.js 提供演示控制台，FastAPI 与 LangGraph 编排 Primary/Critic、确定性规则、Milvus 政策检索和 KeeperHub 执行。PostgreSQL 是业务事实源，Milvus 只保存政策向量；TreasuryGuard 合约执行不可绕过的额度、白名单、幂等和暂停约束。
 
-**技术栈：** Next.js、TypeScript、FastAPI、Pydantic、SQLAlchemy、Alembic、LangGraph、Doubao Seed 2.1 Pro、sentence-transformers、`bge-small-zh-v1.5`、pymilvus、PostgreSQL、Solidity、Hardhat、OpenZeppelin、KeeperHub、Base Sepolia。
+**技术栈：** Next.js、TypeScript、FastAPI、Pydantic、SQLAlchemy、Alembic、LangGraph、Doubao Seed 2.0 Mini、sentence-transformers、`bge-small-zh-v1.5`、pymilvus、PostgreSQL、Solidity、Hardhat、OpenZeppelin、KeeperHub、Base Sepolia。
 
 ---
 
 ## 当前实现进度（2026-08-06）
 
-本轮继续实现后，项目状态从“应用内 APPROVE 后仅标记 `CONFIRMING`”推进到“API 能通过 KeeperHub Direct Execution 构造并提交 `TreasuryGuard.executePaymentWithExpiry(...)`，写回 execution ID / transaction hash，并在分析链路接入实时政策检索的应用侧闭环”。已通过 Base Sepolia 公共 RPC 只读验证：`TreasuryGuard` `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3` 与 `MockUSDC` `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95` 均有链上代码，chainId 为 `84532`；KeeperHub EVM wallet `0x7836A8deB72B27F94d0dF555E23d684aDC894Fe6` 已具备 `EXECUTOR_ROLE` 与 `GUARDIAN_ROLE`；真实付款请求 `pay_9cd3b0932166` 已通过 KeeperHub execution `eaeyxg0igy4f9kovtib51` 完成，交易哈希为 `0xbcbf32c209b3f149408567720253129445c2c356221a4e412ca39d301531a47a`。
+本轮继续实现后，项目状态从“应用内 APPROVE 后仅标记 `CONFIRMING`”推进到“API 能通过 KeeperHub Direct Execution 构造并提交 `TreasuryGuard.executePaymentWithExpiry(...)`，写回 execution ID / transaction hash，并在分析链路接入实时政策检索与 Doubao Primary/Critic 的应用侧闭环”。`POST /api/payment-requests/{id}/analyze` 已改为默认异步，立即返回 `202 ANALYZING`，前端通过 SSE 接收 `ANALYZING → primary → critic → final → status`；低风险请求默认使用 `risk_based` 模式跳过 Doubao，异常/高风险请求才调用 Primary/Critic。已通过 Base Sepolia 公共 RPC 只读验证：`TreasuryGuard` `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3` 与 `MockUSDC` `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95` 均有链上代码，chainId 为 `84532`；KeeperHub EVM wallet `0x7836A8deB72B27F94d0dF555E23d684aDC894Fe6` 已具备 `EXECUTOR_ROLE` 与 `GUARDIAN_ROLE`；真实付款请求 `pay_9cd3b0932166` 已通过 KeeperHub execution `eaeyxg0igy4f9kovtib51` 完成，交易哈希为 `0xbcbf32c209b3f149408567720253129445c2c356221a4e412ca39d301531a47a`。
 
 | 范围 | 进度 | 证据 |
 | --- | --- | --- |
 | 任务 8 PostgreSQL/规则 | 部分完成 | SQLAlchemy 已注册 12 张业务表；已新增 Alembic `001_core_tables`，并将当前 PostgreSQL 标记到该版本；`payment_requests.idempotency_key` 由数据库唯一约束保护；规则结果增加稳定 `rule_codes`。尚缺真实并发 PG 集成测试和规格表名的最终对齐。 |
 | 任务 9 TreasuryGuard | 基本完成 | 本地合约测试通过；增强版 `TreasuryGuard` 已重新部署到 Base Sepolia：`0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`；`MockUSDC` 为 `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95`；Guard 已注资 1000 MockUSDC，token 与 demo recipient 已白名单；KeeperHub wallet 已授予执行与暂停相关角色。BaseScan verify 仍缺 API key，不影响链上执行。 |
 | 任务 10 KeeperHub | 完成 | Adapter 已对齐官方 Direct Execution API：Base URL `https://app.keeperhub.com`，路径 `/api/execute/contract-call`，执行前先 `simulate=true` dry-run，再带 `Idempotency-Key` 广播；`POST /api/payment-requests/{id}/execute` 会构造 `executePaymentWithExpiry` 调用、提交 KeeperHub execution，并把 `keeperhub_execution_id`、`transaction_hash`、执行状态写入 PostgreSQL。真实证据：execution `eaeyxg0igy4f9kovtib51`，tx `0xbcbf32c209b3f149408567720253129445c2c356221a4e412ca39d301531a47a`。 |
-| 任务 11 Agent/LangGraph | 基本完成 | `TreasuryAgentGraph` 仍按 validate → retrieve → primary → critic → rules → human/execute → confirm 编排；付款分析 API 已接入 live Milvus/BGE retriever；Milvus/BGE 异常在 graph 内 fail-closed 到 `REVIEW`，避免 API 500；单元测试覆盖检索成功、检索失败和 Critic 不可降级。真实 Doubao smoke 仍需稳定录制响应样本。 |
-| 任务 12 FastAPI | 基本完成 | 付款请求 API 已覆盖幂等创建、查询、分析、人工审批、未审批执行阻断、真实 KeeperHub execution 提交、审计读取、SSE 事件流和恢复 worker 骨架；健康检查报告合约、USDC 与 KeeperHub 配置状态；已兼容旧版 `CONFIRMING`/`EXECUTION_BLOCKED` 但无 execution ID 的历史记录重试。长期后台调度仍可作为演示后优化项。 |
-| 任务 13 前端控制台 | 部分完成 | 新增首页导航、Demo、Payments、Approvals、Audit、New Payment、Payment Detail 页面；新增类型安全 API client、SSE hook、DecisionTimeline 组件和 Playwright 场景规格；`npm run typecheck` 与 `npm run build` 通过。Playwright 因本机 Chromium 下载超时未完成浏览器实跑。 |
+| 任务 11 Agent/LangGraph | 基本完成 | `TreasuryAgentGraph` 仍按 validate → retrieve → primary → critic → rules → human/execute → confirm 编排；付款分析 API 已接入 live Milvus/BGE retriever 与 Doubao Primary/Critic；新增 `DOUBAO_DECISION_MODE=risk_based|always|off`、固定 `DOUBAO_MODEL=doubao-seed-2-0-mini-260428`、Primary/Critic token 上限和 60 秒单次调用 timeout；Milvus/BGE/Doubao 异常在 graph 内 fail-closed 到 `REVIEW`，最终裁决取更保守结果。真实 `/api/payment-requests/pay_9c537bf7aeb5/events` 已返回 Primary/Critic/Final 全链路 `REVIEW`。 |
+| 任务 12 FastAPI | 基本完成 | 付款请求 API 已覆盖幂等创建、查询、异步分析、人工审批、未审批执行阻断、真实 KeeperHub execution 提交、审计读取、SSE 事件流和恢复 worker 骨架；`POST /analyze` 默认返回 `202 ANALYZING`，后台完成后写回 `decision_hash` 与最终状态；保留 `?sync=true` 供测试/脚本同步验证。健康检查报告合约、USDC 与 KeeperHub 配置状态。 |
+| 任务 13 前端控制台 | 部分完成 | 新增首页导航、Demo、Payments、Approvals、Audit、New Payment、Payment Detail 页面；New Payment 已改为启动异步分析并通过 EventSource 实时更新 DecisionTimeline；新增类型安全 API client、SSE hook、DecisionTimeline 组件和 Playwright 场景规格；`npm run typecheck` 与 `npm run build` 通过。Playwright 因本机 Chromium 下载超时未完成浏览器实跑。 |
 | 任务 14 Demo 固化 | 部分完成 | 新增本地五场景 runner 和 `reset_demo_data.py`；reset 只清理带 `demo_run_id` 的付款请求相关记录；runner 可选 `--workflow` 走真实 repository 分析；生成 `docs/demo-script.md`，记录 Base Sepolia 合约地址和五场景决策证据；不伪造 KeeperHub execution ID/tx hash。尚缺真实链上 E2E。 |
 | 任务 15 Onboarding | 部分完成 | 新增 `starter-kit/scripts/check_environment.py`、双语 Quickstart、Troubleshooting、反馈报告、架构与安全文档；可检查 Python、Web3、模型、PG、Milvus、RPC、合约地址、USDC 与 KeeperHub 配置，并对缺失 KeeperHub fail-closed。最终验证中除 KeeperHub/live 外本地检查通过。 |
 
@@ -135,7 +135,7 @@ def test_settings_accept_local_embedding_path():
         base_sepolia_rpc_url="https://example.invalid",
     )
     assert settings.embedding_dimension == 512
-    assert settings.doubao_model == "doubao-seed-2-1-pro-260628"
+    assert settings.doubao_model == "doubao-seed-2-0-mini-260428"
 ```
 
 - [ ] **步骤 3：运行测试并确认失败**
@@ -190,7 +190,7 @@ class Settings(BaseSettings):
     embedding_dimension: int = 512
     ark_api_key: str
     ark_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
-    doubao_model: str = "doubao-seed-2-1-pro-260628"
+    doubao_model: str = "doubao-seed-2-0-mini-260428"
     keeperhub_api_key: str
     base_sepolia_rpc_url: str
     chain_id: int = Field(default=84532)
@@ -884,13 +884,13 @@ class CriticDecision(BaseModel):
 
 - [x] **步骤 3：实现 LangGraph 节点与路由**
 
-节点顺序固定为 validate → retrieve → primary → critic → rules → human/execute → confirm。规则节点拥有最终自动执行权；Milvus/Doubao 异常进入人工审核。
+节点顺序固定为 validate → retrieve → primary → critic → rules → human/execute → confirm。规则节点汇总确定性规则与 Doubao Primary/Critic，最终裁决取更保守结果；Milvus/Doubao 异常进入人工审核。
 
-- [ ] **步骤 4：运行录制响应测试**
+- [x] **步骤 4：运行录制响应测试**
 
-运行：`cd apps/api && uv run pytest tests/unit/agent -v`
+运行：`cd apps/api && uv run pytest -q`
 
-当前：本地 LangGraph routing/fail-closed、Doubao schema retry、Critic 降级保护单测 PASS；真实 Doubao smoke 读超时，尚缺稳定录制响应样本。
+当前：本地 LangGraph routing/fail-closed、Doubao schema retry、Critic 降级保护和 LLM 升级 REVIEW 不被 deterministic APPROVE 覆盖的单测 PASS；真实 API smoke 已通过 `POST /api/payment-requests/pay_9c537bf7aeb5/analyze` 调用 live Milvus + `doubao-seed-2-0-mini-260428` Primary/Critic，并通过 SSE 返回最终 `REVIEW`。
 
 - [ ] **步骤 5：提交**
 

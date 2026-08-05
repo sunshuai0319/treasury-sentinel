@@ -10,10 +10,10 @@ from app.integrations.doubao import (
 
 class FakeDoubaoClient(DoubaoClient):
     def __init__(self, responses: list[dict]):
-        super().__init__("test-key", "https://example.invalid", "doubao-test")
+        super().__init__("test-key", "https://example.invalid", "doubao-test", 1.0)
         self.responses = responses
 
-    async def chat_json(self, messages, temperature=0.1):
+    async def chat_json(self, messages, temperature=0.1, max_tokens=256):
         return self.responses.pop(0)
 
 

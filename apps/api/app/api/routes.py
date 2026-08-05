@@ -1,8 +1,9 @@
 import json
+import time
 from functools import lru_cache
 
 import httpx
-from fastapi import APIRouter, Header, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -12,6 +13,7 @@ from app.config import get_settings
 from app.db import session_factory
 from app.integrations.keeperhub import KeeperHubClient
 from app.services.execution_payload import build_treasury_execution_payload
+from app.services.llm_decisions import get_live_llm_decision_provider
 from app.services.payment_workflow import PaymentRequestRecord, PaymentWorkflowRepository
 from app.services.policy_retrieval import get_live_policy_retriever
 
@@ -135,12 +137,43 @@ def get_payment_request(request_id: str) -> PaymentRequestView:
     return to_view(record)
 
 
-@router.post("/payment-requests/{request_id}/analyze", response_model=PaymentRun)
-def analyze_payment_request(request_id: str) -> PaymentRun:
-    run = get_repository().analyze(request_id, policy_retriever=get_live_policy_retriever())
-    if not run:
+@router.post("/payment-requests/{request_id}/analyze")
+def analyze_payment_request(
+    request_id: str,
+    background_tasks: BackgroundTasks,
+    response: Response,
+    sync: bool = Query(False),
+) -> PaymentRun | PaymentRequestView:
+    repo = get_repository()
+    if sync:
+        run = repo.analyze(
+            request_id,
+            policy_retriever=get_live_policy_retriever(),
+            llm_decision_provider=get_live_llm_decision_provider(),
+            doubao_decision_mode=get_settings().doubao_decision_mode,
+        )
+        if not run:
+            raise HTTPException(status_code=404, detail="payment request not found")
+        return run
+
+    record = repo.mark_analyzing(request_id)
+    if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
-    return run
+    background_tasks.add_task(_run_analysis_background, request_id)
+    response.status_code = status.HTTP_202_ACCEPTED
+    return to_view(record)
+
+
+def _run_analysis_background(request_id: str) -> None:
+    try:
+        get_repository().analyze(
+            request_id,
+            policy_retriever=get_live_policy_retriever(),
+            llm_decision_provider=get_live_llm_decision_provider(),
+            doubao_decision_mode=get_settings().doubao_decision_mode,
+        )
+    except Exception as exc:  # noqa: BLE001 - background task must fail closed and unblock SSE/UI
+        get_repository().mark_analysis_failed(request_id, f"analysis failed: {type(exc).__name__}: {exc}")
 
 
 @router.post("/payment-requests/{request_id}/approve", response_model=PaymentRequestView)
@@ -226,16 +259,24 @@ def stream_payment_events(request_id: str) -> StreamingResponse:
         raise HTTPException(status_code=404, detail="payment request not found")
 
     def event_stream():
-        events = get_repository().timeline_events(request_id)
-        if not events:
-            yield f"event: status\ndata: {json.dumps({'request_id': request_id, 'status': 'SUBMITTED'})}\n\n"
-            return
-        for item in events:
-            yield (
-                f"id: {item['id']}\n"
-                f"event: {item['event']}\n"
-                f"data: {json.dumps(item['data'], ensure_ascii=False)}\n\n"
-            )
+        sent_ids: set[str] = set()
+        deadline = time.monotonic() + 180
+        while time.monotonic() < deadline:
+            events = get_repository().timeline_events(request_id)
+            for item in events:
+                if item["id"] in sent_ids:
+                    continue
+                sent_ids.add(item["id"])
+                yield (
+                    f"id: {item['id']}\n"
+                    f"event: {item['event']}\n"
+                    f"data: {json.dumps(item['data'], ensure_ascii=False)}\n\n"
+                )
+            record = get_repository().get(request_id)
+            if record and record.status not in {"SUBMITTED", "ANALYZING"}:
+                return
+            yield f"event: heartbeat\ndata: {json.dumps({'request_id': request_id})}\n\n"
+            time.sleep(1)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

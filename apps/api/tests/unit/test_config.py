@@ -13,7 +13,7 @@ def test_settings_accept_local_embedding_path():
     )
 
     assert settings.embedding_dimension == 512
-    assert settings.doubao_model == "doubao-seed-2-1-pro-260628"
+    assert settings.doubao_model == "doubao-seed-2-0-mini-260428"
     assert settings.chain_id == 84532
 
 

@@ -1,13 +1,20 @@
 from collections.abc import Callable
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from langgraph.graph import END, StateGraph
 
 from app.agent.state import AgentDecision, AgentGraphState, PaymentRun
 from app.domain.models import Invoice, Vendor
+from app.integrations.doubao import CriticDecision, PrimaryDecision, critic_final_action
+from app.services.llm_decisions import (
+    LlmDecisionProvider,
+    critic_action_to_timeline,
+    primary_action_to_timeline,
+)
 from app.services.rules import evaluate_payment
 
 PolicyRetriever = Callable[[str], list[dict[str, Any]]]
+FinalAction = Literal["APPROVE", "REVIEW", "REJECT", "PAUSE"]
 
 
 def default_policy_retriever(_: str) -> list[dict[str, Any]]:
@@ -22,8 +29,13 @@ class TreasuryAgentGraph:
     live external services.
     """
 
-    def __init__(self, policy_retriever: PolicyRetriever | None = None):
+    def __init__(
+        self,
+        policy_retriever: PolicyRetriever | None = None,
+        llm_decision_provider: LlmDecisionProvider | None = None,
+    ):
         self.policy_retriever = policy_retriever or default_policy_retriever
+        self.llm_decision_provider = llm_decision_provider
         builder = StateGraph(AgentGraphState)
         builder.add_node("validate", self._validate)
         builder.add_node("retrieve", self._retrieve)
@@ -91,6 +103,21 @@ class TreasuryAgentGraph:
             return state
         refs = self._policy_refs(state)
         timeline = list(state.get("timeline", []))
+        if self.llm_decision_provider:
+            try:
+                primary = self.llm_decision_provider.primary(dict(state), refs)
+            except Exception as exc:  # noqa: BLE001 - LLM failures fail closed into REVIEW
+                return {**state, "error": f"doubao primary failed: {type(exc).__name__}: {exc}", "timeline": timeline}
+            timeline.append(
+                AgentDecision(
+                    actor="primary",
+                    action=primary_action_to_timeline(primary.action),
+                    confidence=max(0.0, min(1.0, 1 - primary.risk_score / 100)),
+                    reasons=primary.reasons,
+                    policy_refs=primary.citation_ids or refs,
+                ).model_dump()
+            )
+            return {**state, "timeline": timeline, "primary_decision": primary.model_dump()}
         timeline.append(
             AgentDecision(
                 actor="primary",
@@ -106,6 +133,24 @@ class TreasuryAgentGraph:
         if state.get("error"):
             return state
         timeline = list(state.get("timeline", []))
+        if self.llm_decision_provider:
+            refs = self._policy_refs(state)
+            primary = PrimaryDecision.model_validate(state["primary_decision"])
+            try:
+                critic = self.llm_decision_provider.critic(dict(state), primary, refs)
+            except Exception as exc:  # noqa: BLE001 - LLM failures fail closed into REVIEW
+                return {**state, "error": f"doubao critic failed: {type(exc).__name__}: {exc}", "timeline": timeline}
+            timeline.append(
+                AgentDecision(
+                    actor="critic",
+                    action=critic_action_to_timeline(critic.recommended_action),
+                    confidence=0.85 if critic.challenge else 0.7,
+                    reasons=critic.blocking_issues
+                    or ["critic found no blocking issue beyond deterministic rules"],
+                    policy_refs=refs,
+                ).model_dump()
+            )
+            return {**state, "timeline": timeline, "critic_decision": critic.model_dump()}
         timeline.append(
             AgentDecision(
                 actor="critic",
@@ -138,20 +183,37 @@ class TreasuryAgentGraph:
             content_hash=state["invoice_id"],
         )
         result = evaluate_payment(vendor, invoice, paid_invoice_ids=state.get("paid_invoice_ids", set()))
+        final_action = cast(FinalAction, result.decision.value)
+        reasons = list(result.reasons)
+        policy_refs = result.policy_refs or self._policy_refs(state)
+        if self.llm_decision_provider and state.get("primary_decision") and state.get("critic_decision"):
+            primary = PrimaryDecision.model_validate(state["primary_decision"])
+            critic = CriticDecision.model_validate(state["critic_decision"])
+            llm_action = critic_final_action(primary, critic)
+            final_action = _most_conservative_action(final_action, llm_action)
+            if llm_action != result.decision.value:
+                reasons.append(f"doubao primary/critic recommended {llm_action}")
+            policy_refs = _unique_refs(
+                [
+                    *policy_refs,
+                    *primary.citation_ids,
+                    *self._policy_refs(state),
+                ]
+            )
         timeline = list(state.get("timeline", []))
         timeline.append(
             AgentDecision(
                 actor="final",
-                action=result.decision.value,
+                action=final_action,
                 confidence=1.0,
-                reasons=result.reasons,
-                policy_refs=result.policy_refs or self._policy_refs(state),
+                reasons=reasons,
+                policy_refs=policy_refs,
             ).model_dump()
         )
         return {
             **state,
             "timeline": timeline,
-            "final_action": result.decision.value,
+            "final_action": final_action,
             "rule_codes": result.rule_codes,
         }
 
@@ -187,3 +249,12 @@ class TreasuryAgentGraph:
             for item in state.get("policy_evidence", [])
         ]
         return refs or ["policy-retrieval#not-configured"]
+
+
+def _most_conservative_action(left: FinalAction, right: FinalAction) -> FinalAction:
+    rank = {"APPROVE": 0, "REVIEW": 1, "REJECT": 2}
+    return left if rank[left] >= rank[right] else right
+
+
+def _unique_refs(refs: list[str]) -> list[str]:
+    return list(dict.fromkeys(refs))

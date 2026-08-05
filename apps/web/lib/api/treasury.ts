@@ -73,6 +73,15 @@ export async function analyzePaymentRequest(requestId: string): Promise<PaymentR
   return (await response.json()) as PaymentRun;
 }
 
+export async function startPaymentAnalysis(requestId: string): Promise<PaymentRequest> {
+  const response = await fetch(`${apiBase}/payment-requests/${requestId}/analyze`, {
+    method: "POST",
+    cache: "no-store"
+  });
+  if (!response.ok) throw new Error(`Start analysis failed: ${response.status}`);
+  return (await response.json()) as PaymentRequest;
+}
+
 export async function getPaymentRequest(requestId: string): Promise<PaymentRequest> {
   const response = await fetch(`${apiBase}/payment-requests/${requestId}`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Get payment failed: ${response.status}`);

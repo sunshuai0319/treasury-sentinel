@@ -20,6 +20,7 @@ from app.domain.tables import (
     VendorTable,
 )
 from app.services.decision_hash import stable_decision_hash
+from app.services.llm_decisions import LlmDecisionProvider
 from app.services.rules import evaluate_payment
 
 PolicyRetriever = Callable[[str], list[dict]]
@@ -99,7 +100,73 @@ class PaymentWorkflowRepository:
             row = session.get(PaymentRequestTable, request_id)
             return record_from_table(row) if row else None
 
-    def analyze(self, request_id: str, policy_retriever: PolicyRetriever | None = None) -> PaymentRun | None:
+    def mark_analyzing(self, request_id: str) -> PaymentRequestRecord | None:
+        with self.session_factory() as session:
+            row = session.get(PaymentRequestTable, request_id)
+            if not row:
+                return None
+            if row.status in {"SUBMITTED", "REVIEW", "REJECT", "APPROVED"}:
+                row.status = "ANALYZING"
+                run_id = f"run_{uuid4().hex[:12]}"
+                session.add(
+                    AgentRunTable(
+                        run_id=run_id,
+                        request_id=row.request_id,
+                        status="STARTED",
+                        timeline=[
+                            {
+                                "actor": "status",
+                                "action": "ANALYZING",
+                                "confidence": 1.0,
+                                "reasons": ["analysis queued"],
+                                "policy_refs": [],
+                            }
+                        ],
+                    )
+                )
+                self._audit(session, row.request_id, "api", "payment_request.analysis_started", {})
+                session.commit()
+            return record_from_table(row)
+
+    def mark_analysis_failed(self, request_id: str, reason: str) -> PaymentRequestRecord | None:
+        with self.session_factory() as session:
+            row = session.get(PaymentRequestTable, request_id)
+            if not row:
+                return None
+            row.status = "REVIEW"
+            row.final_action = "REVIEW"
+            if not row.decision_hash:
+                row.decision_hash = stable_decision_hash(
+                    {"request_id": row.request_id, "final_action": "REVIEW", "reason": reason}
+                )
+            session.add(
+                AgentRunTable(
+                    run_id=f"run_{uuid4().hex[:12]}",
+                    request_id=row.request_id,
+                    status="FAILED",
+                    final_action="REVIEW",
+                    timeline=[
+                        {
+                            "actor": "final",
+                            "action": "REVIEW",
+                            "confidence": 1.0,
+                            "reasons": [reason],
+                            "policy_refs": ["FAIL_CLOSED"],
+                        }
+                    ],
+                )
+            )
+            self._audit(session, row.request_id, "agent", "payment_request.analysis_failed", {"reason": reason})
+            session.commit()
+            return record_from_table(row)
+
+    def analyze(
+        self,
+        request_id: str,
+        policy_retriever: PolicyRetriever | None = None,
+        llm_decision_provider: LlmDecisionProvider | None = None,
+        doubao_decision_mode: str = "risk_based",
+    ) -> PaymentRun | None:
         with self.session_factory() as session:
             row = session.get(PaymentRequestTable, request_id)
             if not row:
@@ -123,7 +190,16 @@ class PaymentWorkflowRepository:
                 recipient_address=row.recipient_address,
                 content_hash=stable_decision_hash({"invoice_id": row.invoice_id}),
             )
-            graph_run = TreasuryAgentGraph(policy_retriever=policy_retriever).run(
+            rule = evaluate_payment(vendor, invoice)
+            effective_llm_decision_provider = llm_decision_provider
+            if doubao_decision_mode == "off" or (
+                doubao_decision_mode == "risk_based" and not _requires_llm_review(rule.decision.value, vendor)
+            ):
+                effective_llm_decision_provider = None
+            graph_run = TreasuryAgentGraph(
+                policy_retriever=policy_retriever,
+                llm_decision_provider=effective_llm_decision_provider,
+            ).run(
                 {
                     "request_id": row.request_id,
                     "scenario": "workflow",
@@ -137,7 +213,6 @@ class PaymentWorkflowRepository:
                     "wallet_changed_recently": vendor.wallet_changed_recently,
                 }
             )
-            rule = evaluate_payment(vendor, invoice)
             final_action = cast(Literal["APPROVE", "REVIEW", "REJECT", "PAUSE"], graph_run.final_action)
             timeline = graph_run.timeline
             row.final_action = final_action
@@ -165,9 +240,9 @@ class PaymentWorkflowRepository:
                     run_id=f"run_{uuid4().hex[:12]}",
                     request_id=row.request_id,
                     status="COMPLETED",
-                    primary_action=timeline[0].action,
-                    critic_action=timeline[1].action,
-                    final_action=timeline[2].action,
+                    primary_action=next((item.action for item in timeline if item.actor == "primary"), None),
+                    critic_action=next((item.action for item in timeline if item.actor == "critic"), None),
+                    final_action=next((item.action for item in timeline if item.actor == "final"), None),
                     timeline=[item.model_dump() for item in timeline],
                 )
             )
@@ -242,6 +317,7 @@ class PaymentWorkflowRepository:
                 .where(AgentRunTable.request_id == request_id)
                 .order_by(AgentRunTable.run_id)
             ).all()
+            runs = sorted(runs, key=lambda item: {"STARTED": 0, "COMPLETED": 1, "FAILED": 2}.get(item.status, 1))
             events: list[dict] = []
             for run in runs:
                 for index, item in enumerate(run.timeline or []):
@@ -325,3 +401,11 @@ class PaymentWorkflowRepository:
                 payload=payload,
             )
         )
+
+
+def _requires_llm_review(rule_decision: str, vendor: Vendor) -> bool:
+    return (
+        rule_decision != "APPROVE"
+        or vendor.status != "APPROVED"
+        or vendor.wallet_changed_recently
+    )

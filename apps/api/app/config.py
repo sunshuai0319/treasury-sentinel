@@ -16,9 +16,13 @@ class Settings(BaseSettings):
     embedding_dimension: int = 512
     ark_api_key: str
     ark_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
-    doubao_model: str = "doubao-seed-2-1-pro-260628"
+    doubao_model: str = "doubao-seed-2-0-mini-260428"
     doubao_primary_temperature: float = 0.1
     doubao_critic_temperature: float = 0.1
+    doubao_timeout_seconds: float = 60.0
+    doubao_primary_max_tokens: int = 192
+    doubao_critic_max_tokens: int = 160
+    doubao_decision_mode: str = "risk_based"
     keeperhub_api_key: str
     keeperhub_base_url: str = "https://app.keeperhub.com"
     keeperhub_wallet_address: str | None = None

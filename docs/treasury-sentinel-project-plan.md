@@ -59,7 +59,7 @@ Treasury Sentinel 是面向 DAO 与中小企业的自主财资守卫。系统读
 | 前端 | Next.js、TypeScript |
 | API | FastAPI、Pydantic、SSE |
 | Agent | Python LangGraph |
-| LLM | 火山方舟 Doubao Seed 2.1 Pro |
+| LLM | 火山方舟 Doubao Seed 2.0 Mini |
 | 结构化数据 | 已部署 PostgreSQL |
 | RAG | 已部署 Milvus + 本地 `bge-small-zh-v1.5` |
 | 合约 | Solidity、Hardhat、OpenZeppelin |
@@ -73,7 +73,7 @@ Treasury Sentinel 是面向 DAO 与中小企业的自主财资守卫。系统读
 
 - Next.js、FastAPI、LangGraph 和 Embedding 推理在开发者 Mac 本地运行。
 - PostgreSQL 与 Milvus 使用现有已部署实例。
-- LLM 使用火山方舟 Doubao Seed 2.1 Pro API。
+- LLM 使用火山方舟 Doubao Seed 2.0 Mini API。
 - KeeperHub 和 Base Sepolia 使用远程服务。
 - 演示网站不要求公网部署，使用本地浏览器录制演示视频即可。
 
@@ -100,16 +100,16 @@ Treasury Sentinel 是面向 DAO 与中小企业的自主财资守卫。系统读
 - 模型路径通过 `EMBEDDING_MODEL_PATH` 配置，默认值为 `/Volumes/wd2t/model/bge-small-zh-v1.5`。
 - 切换到 768 维模型时必须新建 Collection 并重新摄取，禁止将不同维度或不同模型的向量混入同一 Collection。
 
-### 5.3 Doubao Seed 2.1 Pro
+### 5.3 Doubao Seed 2.0 Mini
 
-Primary 与 Critic 共用 Doubao Seed 2.1 Pro，但使用独立 system prompt、独立调用和严格结构化 Schema。默认模型标识配置为 `doubao-seed-2-1-pro-260628`，同时允许使用火山方舟控制台生成的 Endpoint ID 覆盖，避免把账号级 Endpoint 写死在代码中。
+Primary 与 Critic 共用 Doubao Seed 2.0 Mini，但使用独立 system prompt、独立调用和严格结构化 Schema。默认模型标识配置为 `doubao-seed-2-0-mini-260428`，同时允许使用火山方舟控制台生成的 Endpoint ID 覆盖，避免把账号级 Endpoint 写死在代码中。
 
 环境变量：
 
 ```text
 ARK_API_KEY=
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
-DOUBAO_MODEL=doubao-seed-2-1-pro-260628
+DOUBAO_MODEL=doubao-seed-2-0-mini-260428
 DOUBAO_PRIMARY_TEMPERATURE=0.1
 DOUBAO_CRITIC_TEMPERATURE=0.1
 ```

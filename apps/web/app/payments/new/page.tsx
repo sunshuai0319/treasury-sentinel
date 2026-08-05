@@ -4,9 +4,10 @@ import { useState } from "react";
 
 import { DecisionTimeline } from "@/components/decision-timeline/DecisionTimeline";
 import {
-  analyzePaymentRequest,
   createPaymentRequest,
   paymentEventsUrl,
+  startPaymentAnalysis,
+  type DecisionStep,
   type PaymentRun
 } from "@/lib/api/treasury";
 
@@ -27,14 +28,51 @@ export default function NewPaymentPage() {
     setStatus("Creating payment request");
     try {
       const request = await createPaymentRequest(defaultPayload, `web-demo-${Date.now()}`);
-      setStatus("Running Primary/Critic/Rules analysis");
-      const analyzed = await analyzePaymentRequest(request.request_id);
-      setRun(analyzed);
-      setStatus(`Final action: ${analyzed.final_action}`);
+      setStatus("Analysis queued");
+      await startPaymentAnalysis(request.request_id);
+      subscribeToAnalysis(request.request_id);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
       setStatus("Failed");
     }
+  }
+
+  function subscribeToAnalysis(requestId: string) {
+    const source = new EventSource(paymentEventsUrl(requestId));
+    const steps: DecisionStep[] = [];
+    source.addEventListener("heartbeat", () => {
+      setStatus("Analyzing with policy retrieval and agents...");
+    });
+    for (const eventName of ["primary", "critic", "final"]) {
+      source.addEventListener(eventName, (event) => {
+        const step = JSON.parse(event.data) as DecisionStep;
+        const existing = steps.findIndex((item) => item.actor === step.actor);
+        if (existing >= 0) {
+          steps[existing] = step;
+        } else {
+          steps.push(step);
+        }
+        setRun({
+          request_id: requestId,
+          scenario: "workflow",
+          invoice_id: defaultPayload.invoice_id,
+          vendor_id: defaultPayload.vendor_id,
+          final_action: step.actor === "final" ? step.action : "REVIEW",
+          timeline: [...steps]
+        });
+        setStatus(step.actor === "final" ? `Final action: ${step.action}` : `${step.actor} completed`);
+      });
+    }
+    source.addEventListener("status", (event) => {
+      const payload = JSON.parse(event.data) as { status: string; request_id: string };
+      setStatus(`Status: ${payload.status}`);
+      if (!["SUBMITTED", "ANALYZING"].includes(payload.status)) {
+        source.close();
+      }
+    });
+    source.onerror = () => {
+      source.close();
+    };
   }
 
   return (

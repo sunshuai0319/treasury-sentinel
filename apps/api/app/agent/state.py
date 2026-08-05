@@ -44,6 +44,8 @@ class AgentGraphState(TypedDict, total=False):
     paid_invoice_ids: set[str]
     policy_evidence: list[dict]
     timeline: list[dict]
+    primary_decision: dict
+    critic_decision: dict
     final_action: Literal["APPROVE", "REVIEW", "REJECT", "PAUSE"]
     rule_codes: list[str]
     error: str | None
