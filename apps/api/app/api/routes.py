@@ -157,7 +157,8 @@ async def execute_payment_request(request_id: str) -> PaymentRequestView:
     record = repo.get(request_id)
     if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
-    if record.status != "APPROVED":
+    can_retry_legacy_confirming = record.status == "CONFIRMING" and not record.keeperhub_execution_id
+    if record.status != "APPROVED" and not can_retry_legacy_confirming:
         raise HTTPException(status_code=409, detail="payment request is not approved")
     settings = get_settings()
     if (

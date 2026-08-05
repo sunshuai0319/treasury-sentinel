@@ -196,6 +196,45 @@ def test_approved_payment_executes_through_keeperhub(
     assert captured_payloads[0]["arguments"]["amount"] == "420000000"
 
 
+def test_legacy_confirming_without_execution_id_can_retry_keeperhub_execution(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    class FakeKeeperHubClient:
+        async def execute_contract_call(self, payload):
+            return KeeperHubExecution(execution_id="exec_retry_123", status="submitted")
+
+    monkeypatch.setattr(
+        routes,
+        "get_settings",
+        lambda: Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            milvus_uri="http://localhost:19530",
+            ark_api_key="test",
+            keeperhub_api_key="kh_test",
+            keeperhub_wallet_address="0x7836A8deB72B27F94d0dF555E23d684aDC894Fe6",
+            treasury_guard_address="0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3",
+            demo_usdc_address="0x8eEf98476B371BF01D99CBCEA4D7745B49040c95",
+            base_sepolia_rpc_url="https://example.invalid",
+        ),
+    )
+    monkeypatch.setattr(routes, "get_keeperhub_client", lambda: FakeKeeperHubClient())
+    payload = {
+        "vendor_id": "vendor_demo",
+        "invoice_id": "inv_demo_001",
+        "amount_units": 420_000_000,
+        "recipient_address": "0x1111111111111111111111111111111111111111",
+    }
+    created = client.post("/api/payment-requests", json=payload, headers={"Idempotency-Key": "idem-retry"})
+    request_id = created.json()["request_id"]
+    client.post(f"/api/payment-requests/{request_id}/analyze")
+    routes.get_repository().mark_confirming(request_id)
+
+    executed = client.post(f"/api/payment-requests/{request_id}/execute")
+
+    assert executed.status_code == 200
+    assert executed.json()["keeperhub_execution_id"] == "exec_retry_123"
+
+
 def test_recoverable_endpoint_returns_confirming_records(client: TestClient):
     payload = {
         "vendor_id": "vendor_demo",
