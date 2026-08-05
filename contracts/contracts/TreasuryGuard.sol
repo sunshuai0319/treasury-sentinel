@@ -40,6 +40,7 @@ contract TreasuryGuard is AccessControl, Pausable, ReentrancyGuard {
     error DailyLimitExceeded(uint256 nextSpent, uint256 limit);
     error VendorLimitExceeded(bytes32 vendorId, uint256 nextSpent, uint256 limit);
     error InvoiceAlreadyPaid(bytes32 invoiceHash);
+    error DecisionExpired(uint256 expiresAt, uint256 currentTimestamp);
 
     constructor(address admin, uint256 maxSinglePaymentUnits_) {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
@@ -92,7 +93,15 @@ contract TreasuryGuard is AccessControl, Pausable, ReentrancyGuard {
         bytes32 invoiceHash,
         bytes32 decisionHash
     ) external {
-        executePaymentWithVendor(token, recipient, amount, invoiceHash, bytes32(0), decisionHash);
+        executePaymentWithExpiry(
+            token,
+            recipient,
+            amount,
+            invoiceHash,
+            bytes32(0),
+            decisionHash,
+            block.timestamp + 1
+        );
     }
 
     function executePaymentWithVendor(
@@ -102,7 +111,28 @@ contract TreasuryGuard is AccessControl, Pausable, ReentrancyGuard {
         bytes32 invoiceHash,
         bytes32 vendorId,
         bytes32 decisionHash
+    ) public {
+        executePaymentWithExpiry(
+            token,
+            recipient,
+            amount,
+            invoiceHash,
+            vendorId,
+            decisionHash,
+            block.timestamp + 1
+        );
+    }
+
+    function executePaymentWithExpiry(
+        IERC20 token,
+        address recipient,
+        uint256 amount,
+        bytes32 invoiceHash,
+        bytes32 vendorId,
+        bytes32 decisionHash,
+        uint256 expiresAt
     ) public onlyRole(EXECUTOR_ROLE) whenNotPaused nonReentrant {
+        if (expiresAt < block.timestamp) revert DecisionExpired(expiresAt, block.timestamp);
         if (!allowedTokens[address(token)]) revert TokenNotAllowed(address(token));
         if (!allowedRecipients[recipient]) revert RecipientNotAllowed(recipient);
         if (amount > maxSinglePaymentUnits) revert PaymentTooLarge(amount);

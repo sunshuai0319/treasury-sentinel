@@ -21,6 +21,7 @@ async function main() {
   const maxSinglePaymentUnits = 500_000_000;
   const invoiceHash = ethers.id("LOCAL-DEMO-INVOICE-001");
   const decisionHash = ethers.id("LOCAL-DEMO-DECISION-001");
+  const expiresAt = Math.floor(Date.now() / 1000) + 3600;
 
   const usdc = await ethers.deployContract("MockUSDC");
   await usdc.waitForDeployment();
@@ -36,12 +37,14 @@ async function main() {
   await (await guard.setRecipientAllowed(recipient.address, true)).wait();
 
   const beforeBalance = await usdc.balanceOf(recipient.address);
-  const tx = await guard.executePayment(
+  const tx = await guard.executePaymentWithExpiry(
     await usdc.getAddress(),
     recipient.address,
     amount,
     invoiceHash,
-    decisionHash
+    ethers.id("local-demo-vendor"),
+    decisionHash,
+    expiresAt
   );
   const receipt = await tx.wait();
   const afterBalance = await usdc.balanceOf(recipient.address);

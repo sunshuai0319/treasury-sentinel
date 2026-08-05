@@ -84,6 +84,24 @@ describe("TreasuryGuard", function () {
     ).to.be.revertedWithCustomError(guard, "DailyLimitExceeded");
   });
 
+  it("blocks expired decisions", async function () {
+    const { recipient, usdc, guard } = await deployFixture();
+    await guard.setRecipientAllowed(recipient.address, true);
+    const block = await ethers.provider.getBlock("latest");
+
+    await expect(
+      guard.executePaymentWithExpiry(
+        await usdc.getAddress(),
+        recipient.address,
+        1,
+        ethers.id("INV-EXPIRED"),
+        ethers.id("vendor-expired"),
+        ethers.id("decision-expired"),
+        block.timestamp - 1
+      )
+    ).to.be.revertedWithCustomError(guard, "DecisionExpired");
+  });
+
   it("allows guardians to pause but only admins to unpause", async function () {
     const { recipient, guardian, outsider, usdc, guard } = await deployFixture();
     await guard.setRecipientAllowed(recipient.address, true);
