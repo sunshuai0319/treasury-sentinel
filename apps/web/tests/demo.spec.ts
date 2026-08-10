@@ -11,7 +11,9 @@ test("demo console exposes the five fixed scenarios", async ({ page }) => {
 
 test("new payment flow submits a request and renders analysis", async ({ page }) => {
   let eventRequests = 0;
+  let createdPayload: { amount_units: number } | undefined;
   await page.route("**/api/payment-requests", async (route) => {
+    createdPayload = route.request().postDataJSON() as { amount_units: number };
     await route.fulfill({
       json: {
         request_id: "pay_web_test",
@@ -63,11 +65,73 @@ test("new payment flow submits a request and renders analysis", async ({ page })
 
   await page.goto("/payments/new");
   await expect(page.getByText("Analysis has not started yet")).toBeVisible();
-  await page.getByRole("button", { name: /Submit demo payment/ }).click();
+  await page.getByRole("button", { name: /Submit Normal auto payment/ }).click();
   await expect(page.getByText("Status: APPROVED")).toBeVisible();
   await expect(page.getByText("rules allow")).toBeVisible();
   await page.waitForTimeout(1500);
+  expect(createdPayload?.amount_units).toBe(420000000);
   expect(eventRequests).toBe(1);
+});
+
+test("new payment preset can demonstrate over-limit review path", async ({ page }) => {
+  let createdPayload: { amount_units: number; invoice_id: string } | undefined;
+  await page.route("**/api/payment-requests", async (route) => {
+    createdPayload = route.request().postDataJSON() as { amount_units: number; invoice_id: string };
+    await route.fulfill({
+      json: {
+        request_id: "pay_over_limit_web_test",
+        vendor_id: "vendor_demo",
+        invoice_id: "inv_demo_over_limit",
+        amount_units: 700000000,
+        recipient_address: "0x1111111111111111111111111111111111111111",
+        status: "SUBMITTED",
+        final_action: null,
+        decision_hash: null,
+        keeperhub_execution_id: null,
+        transaction_hash: null
+      }
+    });
+  });
+  await page.route("**/api/payment-requests/pay_over_limit_web_test/analyze", async (route) => {
+    await route.fulfill({
+      status: 202,
+      json: {
+        request_id: "pay_over_limit_web_test",
+        invoice_id: "inv_demo_over_limit",
+        vendor_id: "vendor_demo",
+        amount_units: 700000000,
+        recipient_address: "0x1111111111111111111111111111111111111111",
+        status: "ANALYZING",
+        final_action: null,
+        decision_hash: null,
+        keeperhub_execution_id: null,
+        transaction_hash: null
+      }
+    });
+  });
+  await page.route("**/api/payment-requests/pay_over_limit_web_test/events**", async (route) => {
+    const stream = [
+      'id: run_over_limit_web_test:0\nevent: primary\ndata: {"actor":"primary","action":"REVIEW","confidence":0.72,"reasons":["amount exceeds auto-payment limit"],"policy_refs":["payment-policy#2.2"]}\n\n',
+      'id: run_over_limit_web_test:1\nevent: critic\ndata: {"actor":"critic","action":"REVIEW","confidence":0.78,"reasons":["critic requires finance approval"],"policy_refs":["payment-policy#2.2"]}\n\n',
+      'id: run_over_limit_web_test:2\nevent: final\ndata: {"actor":"final","action":"REVIEW","confidence":1,"reasons":["amount requires finance manager approval"],"policy_refs":["payment-policy#2.2"]}\n\n',
+      'id: pay_over_limit_web_test:status\nevent: status\ndata: {"request_id":"pay_over_limit_web_test","status":"REVIEW","decision_hash":"0xdef","keeperhub_execution_id":null,"transaction_hash":null}\n\n'
+    ].join("");
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream"
+      },
+      body: stream
+    });
+  });
+
+  await page.goto("/payments/new");
+  await page.getByRole("button", { name: /Over 500 USDC/ }).click();
+  await expect(page.getByText("700000000")).toBeVisible();
+  await page.getByRole("button", { name: /Submit Over 500 USDC/ }).click();
+  await expect(page.getByText("Status: REVIEW")).toBeVisible();
+  await expect(page.getByText("amount requires finance manager approval")).toBeVisible();
+  expect(createdPayload).toMatchObject({ amount_units: 700000000, invoice_id: "inv_demo_over_limit" });
 });
 
 test("audit guide explains demo ids versus real payment request ids", async ({ page }) => {

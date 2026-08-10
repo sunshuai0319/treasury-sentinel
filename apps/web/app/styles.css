@@ -98,7 +98,7 @@ button {
 }
 
 .twoCols {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
 }
 
 pre {
@@ -119,6 +119,55 @@ pre {
 .copyPanel code,
 .copyPanel a {
   color: var(--panel-dark-text);
+}
+
+.presetList {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.presetButton {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(203, 213, 225, 0.18);
+  border-radius: 12px;
+  color: var(--panel-dark-text);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.presetButton.active,
+.presetButton:hover {
+  border-color: rgba(248, 250, 252, 0.7);
+  background: rgba(15, 23, 42, 0.76);
+}
+
+.presetButton span {
+  font-weight: 800;
+}
+
+.presetButton small,
+.presetDescription {
+  color: var(--panel-dark-muted);
+}
+
+.presetDescription {
+  line-height: 1.5;
+}
+
+.sseEndpoint {
+  overflow-wrap: anywhere;
+}
+
+.sseEndpoint code {
+  display: inline;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
 .tableCard {
