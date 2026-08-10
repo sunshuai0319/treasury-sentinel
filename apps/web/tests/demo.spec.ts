@@ -210,3 +210,98 @@ test("audit guide explains demo ids versus real payment request ids", async ({ p
   await expect(page.getByText("不是后端 PostgreSQL 里的真实付款请求 ID")).toBeVisible();
   await expect(page.getByText("/audit/pay_xxx")).toBeVisible();
 });
+
+
+test("approvals lists review payments and approves or rejects them", async ({ page }) => {
+  let reviews = [
+    {
+      request_id: "pay_review_1",
+      vendor_id: "vendor_demo",
+      invoice_id: "inv_demo_over_limit",
+      amount_units: 700000000,
+      recipient_address: "0x1111111111111111111111111111111111111111",
+      status: "REVIEW",
+      final_action: "REVIEW",
+      decision_hash: null,
+      keeperhub_execution_id: null,
+      transaction_hash: null
+    },
+    {
+      request_id: "pay_review_2",
+      vendor_id: "vendor_demo",
+      invoice_id: "inv_demo_over_limit_2",
+      amount_units: 900000000,
+      recipient_address: "0x1111111111111111111111111111111111111111",
+      status: "REVIEW",
+      final_action: "REVIEW",
+      decision_hash: null,
+      keeperhub_execution_id: null,
+      transaction_hash: null
+    }
+  ];
+  await page.route("**/api/payment-requests?status=REVIEW", async (route) => {
+    await route.fulfill({ json: reviews });
+  });
+  await page.route("**/api/payment-requests/pay_review_1/approve", async (route) => {
+    reviews = reviews.filter((item) => item.request_id !== "pay_review_1");
+    await route.fulfill({
+      json: {
+        ...reviews[0],
+        status: "APPROVED",
+        final_action: "APPROVE"
+      }
+    });
+  });
+  await page.route("**/api/payment-requests/pay_review_2/reject", async (route) => {
+    reviews = reviews.filter((item) => item.request_id !== "pay_review_2");
+    await route.fulfill({
+      json: {
+        request_id: "pay_review_2",
+        vendor_id: "vendor_demo",
+        invoice_id: "inv_demo_over_limit_2",
+        amount_units: 900000000,
+        recipient_address: "0x1111111111111111111111111111111111111111",
+        status: "REJECT",
+        final_action: "REJECT",
+        decision_hash: null,
+        keeperhub_execution_id: null,
+        transaction_hash: null
+      }
+    });
+  });
+
+  await page.goto("/approvals");
+  await expect(page.getByText("pay_review_1")).toBeVisible();
+  await expect(page.getByText("pay_review_2")).toBeVisible();
+  await expect(page.getByText("700 USDC")).toBeVisible();
+
+  await page.getByRole("button", { name: /Approve/ }).first().click();
+  await expect(page.getByText("pay_review_1")).not.toBeVisible();
+  await expect(page.getByText("pay_review_2")).toBeVisible();
+
+  await page.getByRole("button", { name: /Reject/ }).click();
+  await expect(page.getByText("No payments awaiting review.")).toBeVisible();
+});
+
+test("audit page streams the real decision trail for a payment id", async ({ page }) => {
+  await page.route("**/api/payment-requests/pay_audit_web_test/events**", async (route) => {
+    const stream = [
+      'id: run_audit:0\nevent: primary\ndata: {"actor":"primary","action":"REVIEW","confidence":0.72,"reasons":["amount exceeds auto-payment limit"],"policy_refs":["payment-policy#2.2"]}\n\n',
+      'id: run_audit:1\nevent: critic\ndata: {"actor":"critic","action":"REVIEW","confidence":0.78,"reasons":["critic requires finance approval"],"policy_refs":["payment-policy#2.2"]}\n\n',
+      'id: run_audit:2\nevent: final\ndata: {"actor":"final","action":"REVIEW","confidence":1,"reasons":["amount requires finance manager approval"],"policy_refs":["payment-policy#2.2"]}\n\n',
+      'id: pay_audit_web_test:status\nevent: status\ndata: {"request_id":"pay_audit_web_test","status":"REVIEW","decision_hash":"0xdef","keeperhub_execution_id":null,"transaction_hash":null}\n\n'
+    ].join("");
+    await route.fulfill({
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+      body: stream
+    });
+  });
+
+  await page.goto("/audit/pay_audit_web_test");
+  await expect(page.getByText("amount requires finance manager approval")).toBeVisible();
+  // Actor names also appear in the intro copy, so scope to the timeline rows.
+  await expect(page.locator(".step", { hasText: "primary" })).toBeVisible();
+  await expect(page.locator(".step", { hasText: "critic" })).toBeVisible();
+  await expect(page.locator(".step", { hasText: "final" })).toBeVisible();
+});

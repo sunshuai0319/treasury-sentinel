@@ -1,11 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { use } from "react";
 
+import { DecisionTimeline } from "@/components/decision-timeline/DecisionTimeline";
 import { paymentEventsUrl } from "@/lib/api/treasury";
+import { buildDecisionSteps, usePaymentEvents } from "@/lib/api/usePaymentEvents";
 
-export default async function AuditPage({ params }: { params: Promise<{ requestId: string }> }) {
-  const { requestId } = await params;
+export default function AuditPage({ params }: { params: Promise<{ requestId: string }> }) {
+  const { requestId } = use(params);
   const isDemoGuide = requestId === "demo-normal";
-  const eventsUrl = paymentEventsUrl(requestId);
+  const { events, eventsRequestId, error } = usePaymentEvents(isDemoGuide ? undefined : requestId);
+  const steps = buildDecisionSteps(eventsRequestId === requestId ? events : []);
 
   return (
     <main className="shell narrow">
@@ -25,13 +31,17 @@ export default async function AuditPage({ params }: { params: Promise<{ requestI
           </>
         ) : (
           <>
-            <p>这个页面对应后端 SSE 审计事件流，按顺序输出 Primary、Critic、Final 和 status events。</p>
             <p>
-              API endpoint: <code>{eventsUrl}</code>
+              这个页面对应后端 SSE 审计事件流，按顺序输出 Primary、Critic、Final 和 status events。
             </p>
+            <p>
+              API endpoint: <code>{paymentEventsUrl(requestId)}</code>
+            </p>
+            {error ? <p className="errorText">{error}</p> : null}
           </>
         )}
       </section>
+      {!isDemoGuide ? <DecisionTimeline steps={steps} /> : null}
     </main>
   );
 }

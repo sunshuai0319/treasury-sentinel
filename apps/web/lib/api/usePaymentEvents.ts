@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { paymentEventsUrl } from "./treasury";
+import { paymentEventsUrl, type DecisionStep } from "./treasury";
 
 const maxReconnects = 3;
 const eventNames = ["primary", "critic", "final", "status"] as const;
@@ -13,6 +13,22 @@ export type SseEvent = {
   event: string;
   data: unknown;
 };
+
+export function buildDecisionSteps(events: SseEvent[]): DecisionStep[] {
+  const steps: DecisionStep[] = [];
+  for (const event of events) {
+    if (["primary", "critic", "final"].includes(event.event)) {
+      const step = event.data as DecisionStep;
+      const existing = steps.findIndex((item) => item.actor === step.actor);
+      if (existing >= 0) {
+        steps[existing] = step;
+      } else {
+        steps.push(step);
+      }
+    }
+  }
+  return steps;
+}
 
 export function usePaymentEvents(requestId?: string) {
   const [events, setEvents] = useState<SseEvent[]>([]);

@@ -90,6 +90,29 @@ export async function getPaymentRequest(requestId: string): Promise<PaymentReque
   return (await response.json()) as PaymentRequest;
 }
 
+export async function listPaymentRequests(status?: string): Promise<PaymentRequest[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const response = await fetch(`${apiBase}/payment-requests${query}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`List payments failed: ${response.status}`);
+  return (await response.json()) as PaymentRequest[];
+}
+
+export async function decidePaymentRequest(
+  requestId: string,
+  decision: "approve" | "reject",
+  approver: string,
+  reason?: string
+): Promise<PaymentRequest> {
+  const response = await fetch(`${apiBase}/payment-requests/${requestId}/${decision}`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ approver, reason: reason || "" })
+  });
+  if (!response.ok) throw new Error(`Payment ${decision} failed: ${response.status}`);
+  return (await response.json()) as PaymentRequest;
+}
+
 export function paymentEventsUrl(requestId: string, lastEventId?: string): string {
   const url = new URL(`${apiBase}/payment-requests/${requestId}/events`);
   if (lastEventId) url.searchParams.set("last_event_id", lastEventId);

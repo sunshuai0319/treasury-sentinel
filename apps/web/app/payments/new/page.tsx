@@ -7,10 +7,9 @@ import {
   createPaymentRequest,
   paymentEventsUrl,
   startPaymentAnalysis,
-  type DecisionStep,
   type PaymentRun
 } from "@/lib/api/treasury";
-import { usePaymentEvents } from "@/lib/api/usePaymentEvents";
+import { buildDecisionSteps, usePaymentEvents } from "@/lib/api/usePaymentEvents";
 
 const paymentPresets = [
   {
@@ -68,17 +67,8 @@ export default function NewPaymentPage() {
     // Guard against the stale `events` snapshot from the previous request:
     // on submit, requestId changes before usePaymentEvents clears events.
     if (!requestId || eventsRequestId !== requestId) return;
-    const steps: DecisionStep[] = [];
+    const steps = buildDecisionSteps(events);
     for (const event of events) {
-      if (["primary", "critic", "final"].includes(event.event)) {
-        const step = event.data as DecisionStep;
-        const existing = steps.findIndex((item) => item.actor === step.actor);
-        if (existing >= 0) {
-          steps[existing] = step;
-        } else {
-          steps.push(step);
-        }
-      }
       if (event.event === "status") {
         const payload = event.data as { status: string; request_id: string };
         setStatus(`Status: ${payload.status}`);
