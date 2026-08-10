@@ -7,13 +7,13 @@ export default defineConfig({
     timeout: 10_000
   },
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://127.0.0.1:3100",
     ...devices["Desktop Chrome"],
     channel: "chrome"
   },
   webServer: {
-    command: "npm run dev",
-    url: "http://127.0.0.1:3000",
+    command: "next dev -p 3100",
+    url: "http://127.0.0.1:3100",
     reuseExistingServer: true,
     timeout: 120_000
   }

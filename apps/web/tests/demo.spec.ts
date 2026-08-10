@@ -64,3 +64,10 @@ test("new payment flow submits a request and renders analysis", async ({ page })
   await expect(page.getByText("Status: APPROVED")).toBeVisible();
   await expect(page.getByText("rules allow")).toBeVisible();
 });
+
+test("audit guide explains demo ids versus real payment request ids", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: /Audit trail guide/ }).click();
+  await expect(page.getByText("不是后端 PostgreSQL 里的真实付款请求 ID")).toBeVisible();
+  await expect(page.getByText("/audit/pay_xxx")).toBeVisible();
+});

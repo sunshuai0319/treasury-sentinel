@@ -4,6 +4,9 @@
   --line: #d7ded9;
   --paper: #f7f8f4;
   --panel: #ffffff;
+  --panel-dark: #2f3949;
+  --panel-dark-text: #f8fafc;
+  --panel-dark-muted: #cbd5e1;
   --approved: #0f7b55;
   --review: #805b10;
   --rejected: #9b2f2f;
@@ -63,14 +66,14 @@ button {
 .navGrid a,
 .copyPanel,
 .tableCard {
-  background: rgba(15, 23, 42, 0.78);
+  background: var(--panel-dark);
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 24px;
   padding: 22px;
 }
 
 .navGrid a {
-  color: #dbeafe;
+  color: var(--panel-dark-text);
   font-weight: 700;
 }
 
@@ -107,8 +110,14 @@ pre {
 }
 
 .copyPanel {
-  color: var(--muted);
+  color: var(--panel-dark-muted);
   line-height: 1.8;
+}
+
+.copyPanel strong,
+.copyPanel code,
+.copyPanel a {
+  color: var(--panel-dark-text);
 }
 
 .tableCard {
@@ -117,12 +126,18 @@ pre {
 }
 
 .tableRow {
+  color: var(--panel-dark-text);
   display: grid;
   grid-template-columns: 1.2fr 0.8fr 0.6fr 1.4fr;
   gap: 12px;
   padding: 14px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.72);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.tableRow span,
+.tableRow small {
+  color: var(--panel-dark-muted);
 }
 
 .eyebrow {
