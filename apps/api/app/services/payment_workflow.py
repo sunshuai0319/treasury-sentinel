@@ -281,6 +281,40 @@ class PaymentWorkflowRepository:
             session.commit()
             return record_from_table(row)
 
+    def reject(self, request_id: str, approver: str, reason: str) -> PaymentRequestRecord | None:
+        with self.session_factory() as session:
+            row = session.get(PaymentRequestTable, request_id)
+            if not row:
+                return None
+            row.status = "REJECT"
+            row.final_action = "REJECT"
+            if not row.decision_hash:
+                row.decision_hash = stable_decision_hash({"request_id": row.request_id, "approval": "manual"})
+            session.add(
+                ApprovalTable(
+                    approval_id=f"appr_{uuid4().hex[:12]}",
+                    request_id=row.request_id,
+                    approver=approver,
+                    decision="REJECT",
+                    reason=reason,
+                )
+            )
+            self._audit(session, row.request_id, approver, "payment_request.rejected", {"reason": reason})
+            session.commit()
+            return record_from_table(row)
+
+    def list_by_status(self, status: str) -> list[PaymentRequestRecord]:
+        with self.session_factory() as session:
+            rows = session.scalars(
+                select(PaymentRequestTable).where(PaymentRequestTable.status == status)
+            ).all()
+            return [record_from_table(row) for row in rows]
+
+    def list_all(self) -> list[PaymentRequestRecord]:
+        with self.session_factory() as session:
+            rows = session.scalars(select(PaymentRequestTable)).all()
+            return [record_from_table(row) for row in rows]
+
     def mark_execution_blocked(self, request_id: str, reason: str) -> PaymentRequestRecord | None:
         with self.session_factory() as session:
             row = session.get(PaymentRequestTable, request_id)

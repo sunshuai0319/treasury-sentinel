@@ -40,6 +40,11 @@ class ApprovePaymentRequest(BaseModel):
     reason: str = ""
 
 
+class RejectPaymentRequest(BaseModel):
+    approver: str = Field(min_length=1)
+    reason: str = ""
+
+
 class PaymentRequestView(BaseModel):
     request_id: str
     vendor_id: str
@@ -191,6 +196,21 @@ def approve_payment_request(request_id: str, payload: ApprovePaymentRequest) -> 
     if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
     return to_view(record)
+
+
+@router.post("/payment-requests/{request_id}/reject", response_model=PaymentRequestView)
+def reject_payment_request(request_id: str, payload: RejectPaymentRequest) -> PaymentRequestView:
+    record = get_repository().reject(request_id, payload.approver, payload.reason)
+    if not record:
+        raise HTTPException(status_code=404, detail="payment request not found")
+    return to_view(record)
+
+
+@router.get("/payment-requests", response_model=list[PaymentRequestView])
+def list_payment_requests(status: str | None = Query(None)) -> list[PaymentRequestView]:
+    if status:
+        return [to_view(record) for record in get_repository().list_by_status(status)]
+    return [to_view(record) for record in get_repository().list_all()]
 
 
 @router.post("/payment-requests/{request_id}/execute", response_model=PaymentRequestView)

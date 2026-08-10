@@ -383,3 +383,58 @@ def test_sse_events_stream_agent_timeline(client: TestClient):
     resumed = client.get(f"/api/payment-requests/{request_id}/events?last_event_id={first_event_id}")
     assert resumed.status_code == 200
     assert f"id: {first_event_id}" not in resumed.text
+
+
+def test_review_payment_can_be_rejected_via_api(client: TestClient):
+    payload = {
+        "vendor_id": "vendor_demo",
+        "invoice_id": "inv_demo_over_limit",
+        "amount_units": 700_000_000,
+        "recipient_address": "0x1111111111111111111111111111111111111111",
+    }
+    created = client.post("/api/payment-requests", json=payload, headers={"Idempotency-Key": "idem-reject"})
+    request_id = created.json()["request_id"]
+
+    analyzed = client.post(f"/api/payment-requests/{request_id}/analyze?sync=true")
+    assert analyzed.json()["final_action"] == "REVIEW"
+
+    rejected = client.post(
+        f"/api/payment-requests/{request_id}/reject",
+        json={"approver": "finance@example.com", "reason": "policy escalation declined"},
+    )
+    assert rejected.status_code == 200
+    assert rejected.json()["status"] == "REJECT"
+    assert rejected.json()["final_action"] == "REJECT"
+
+
+def test_list_payment_requests_filters_by_status(client: TestClient):
+    approved_payload = {
+        "vendor_id": "vendor_demo",
+        "invoice_id": "inv_demo_001",
+        "amount_units": 420_000_000,
+        "recipient_address": "0x1111111111111111111111111111111111111111",
+    }
+    approved = client.post(
+        "/api/payment-requests", json=approved_payload, headers={"Idempotency-Key": "idem-list-approved"}
+    )
+    client.post(f"/api/payment-requests/{approved.json()['request_id']}/analyze?sync=true")
+
+    review_payload = {
+        "vendor_id": "vendor_demo",
+        "invoice_id": "inv_demo_over_limit",
+        "amount_units": 700_000_000,
+        "recipient_address": "0x1111111111111111111111111111111111111111",
+    }
+    review = client.post("/api/payment-requests", json=review_payload, headers={"Idempotency-Key": "idem-list-review"})
+    review_id = review.json()["request_id"]
+    client.post(f"/api/payment-requests/{review_id}/analyze?sync=true")
+
+    review_list = client.get("/api/payment-requests?status=REVIEW")
+    assert review_list.status_code == 200
+    ids = [item["request_id"] for item in review_list.json()]
+    assert review_id in ids
+    assert approved.json()["request_id"] not in ids
+
+    all_list = client.get("/api/payment-requests")
+    assert all_list.status_code == 200
+    assert review_id in [item["request_id"] for item in all_list.json()]
