@@ -104,11 +104,14 @@ def _primary_messages(state: dict[str, Any], policy_refs: list[str]) -> list[dic
         {
             "role": "system",
             "content": (
-                '只输出一行JSON。字段固定为 action,risk_score,reasons,citation_ids。'
-                'action只能是AUTO_EXECUTE,HUMAN_REVIEW,REJECT。'
-                '规则：vendor_status不是APPROVED或地址不匹配或近期换地址=>REJECT；'
-                'amount_units<=500000000且供应商已批准且地址匹配=>AUTO_EXECUTE；'
-                '其他=>HUMAN_REVIEW。'
+                "Output exactly one line of JSON with fixed fields: action, risk_score, reasons, citation_ids. "
+                "action must be one of AUTO_EXECUTE, HUMAN_REVIEW, REJECT. "
+                "Rules: vendor_status is not APPROVED OR recipient address mismatches the vendor wallet "
+                "OR wallet recently changed => REJECT; "
+                "amount_units <= 500000000 AND vendor approved AND address matches => AUTO_EXECUTE; "
+                "otherwise => HUMAN_REVIEW. "
+                "Write each reason in English first, followed by a Chinese translation in parentheses, "
+                'e.g. "Amount within auto-payment limit (金额在自动支付限额内)".'
             ),
         },
         {
@@ -120,8 +123,9 @@ def _primary_messages(state: dict[str, Any], policy_refs: list[str]) -> list[dic
                 f"recipient_address={context['recipient_address']};"
                 f"wallet_changed_recently={context['wallet_changed_recently']};"
                 f"policy_refs={','.join(policy_refs[:3])}. "
-                '返回示例：{"action":"HUMAN_REVIEW","risk_score":60,'
-                '"reasons":["amount requires review"],"citation_ids":["payment-policy#2.2"]}'
+                'Return example: {"action":"HUMAN_REVIEW","risk_score":60,'
+                '"reasons":["amount requires review (金额需要人工复核)"],'
+                '"citation_ids":["payment-policy#2.2"]}'
             ),
         },
     ]
@@ -135,10 +139,12 @@ def _critic_messages(
         {
             "role": "system",
             "content": (
-                '只输出一行JSON。字段固定为 challenge,blocking_issues,recommended_action。'
-                '只能保持或升级风险，不能把HUMAN_REVIEW/REJECT降为AUTO_EXECUTE。'
-                '如地址不匹配、供应商未批准、近期换地址=>REJECT；'
-                '如金额超过500000000=>HUMAN_REVIEW；否则沿用primary。'
+                "Output exactly one line of JSON with fixed fields: challenge, blocking_issues, recommended_action. "
+                "Only keep or escalate risk; never downgrade HUMAN_REVIEW/REJECT to AUTO_EXECUTE. "
+                "Address mismatch, vendor not approved, or wallet recently changed => REJECT; "
+                "amount_units above 500000000 => HUMAN_REVIEW; otherwise follow primary. "
+                "Write each blocking issue in English first, followed by a Chinese translation in parentheses, "
+                'e.g. "Recipient address does not match vendor wallet (收款地址与供应商钱包不匹配)".'
             ),
         },
         {
@@ -150,7 +156,8 @@ def _critic_messages(
                 f"recipient_address={context['recipient_address']};"
                 f"wallet_changed_recently={context['wallet_changed_recently']};"
                 f"primary={primary.model_dump_json()}. "
-                '返回示例：{"challenge":true,"blocking_issues":["amount requires review"],'
+                'Return example: {"challenge":true,'
+                '"blocking_issues":["amount requires review (金额需要人工复核)"],'
                 '"recommended_action":"HUMAN_REVIEW"}'
             ),
         },
