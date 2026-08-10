@@ -11,6 +11,25 @@ sys.path.insert(0, str(REPO_ROOT / "apps" / "api"))
 
 from app.config import Settings
 
+TREASURY_GUARD_ABI = [
+    {
+        "inputs": [{"internalType": "bytes32", "name": "role", "type": "bytes32"}, {"internalType": "address", "name": "account", "type": "address"}],
+        "name": "hasRole",
+        "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    }
+]
+ERC20_ABI = [
+    {
+        "inputs": [{"internalType": "address", "name": "account", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    }
+]
+
 
 @dataclass
 class Check:
@@ -31,6 +50,60 @@ def port_open(uri: str) -> bool:
         return False
 
 
+def chain_checks(settings: Settings) -> list[Check]:
+    if importlib.util.find_spec("web3") is None:
+        return [
+            Check("keeperhub_executor_role", False, "web3 package missing"),
+            Check("keeperhub_guardian_role", False, "web3 package missing"),
+            Check("treasury_guard_usdc_balance", False, "web3 package missing"),
+        ]
+    if not (
+        settings.base_sepolia_rpc_url
+        and settings.treasury_guard_address
+        and settings.demo_usdc_address
+        and settings.keeperhub_wallet_address
+    ):
+        return [
+            Check("keeperhub_executor_role", False, "missing rpc/contract/wallet config"),
+            Check("keeperhub_guardian_role", False, "missing rpc/contract/wallet config"),
+            Check("treasury_guard_usdc_balance", False, "missing rpc/contract config"),
+        ]
+    from web3 import Web3
+
+    try:
+        web3 = Web3(Web3.HTTPProvider(settings.base_sepolia_rpc_url, request_kwargs={"timeout": 8}))
+        guard_address = Web3.to_checksum_address(settings.treasury_guard_address)
+        usdc_address = Web3.to_checksum_address(settings.demo_usdc_address)
+        wallet_address = Web3.to_checksum_address(settings.keeperhub_wallet_address)
+        guard = web3.eth.contract(address=guard_address, abi=TREASURY_GUARD_ABI)
+        usdc = web3.eth.contract(address=usdc_address, abi=ERC20_ABI)
+        executor_role = Web3.keccak(text="EXECUTOR_ROLE")
+        guardian_role = Web3.keccak(text="GUARDIAN_ROLE")
+        has_executor = bool(guard.functions.hasRole(executor_role, wallet_address).call())
+        has_guardian = bool(guard.functions.hasRole(guardian_role, wallet_address).call())
+        balance = int(usdc.functions.balanceOf(guard_address).call())
+    except Exception as exc:  # noqa: BLE001 - onboarding check should explain blockers, not crash
+        detail = f"chain read failed: {type(exc).__name__}"
+        return [
+            Check("keeperhub_executor_role", False, detail),
+            Check("keeperhub_guardian_role", False, detail),
+            Check("treasury_guard_usdc_balance", False, detail),
+        ]
+    return [
+        Check(
+            "keeperhub_executor_role",
+            has_executor,
+            "wallet has EXECUTOR_ROLE" if has_executor else "missing EXECUTOR_ROLE",
+        ),
+        Check(
+            "keeperhub_guardian_role",
+            has_guardian,
+            "wallet has GUARDIAN_ROLE" if has_guardian else "missing GUARDIAN_ROLE",
+        ),
+        Check("treasury_guard_usdc_balance", balance > 0, f"{balance / 1_000_000:.6f} USDC"),
+    ]
+
+
 def main() -> int:
     settings = Settings(_env_file=REPO_ROOT / "apps/api/.env")  # type: ignore[call-arg]
     checks = [
@@ -48,6 +121,7 @@ def main() -> int:
             "api_key/set and wallet/set" if settings.keeperhub_api_key and settings.keeperhub_wallet_address else "missing api key or wallet",
         ),
     ]
+    checks.extend(chain_checks(settings))
     width = max(len(c.name) for c in checks)
     failed = 0
     for check in checks:

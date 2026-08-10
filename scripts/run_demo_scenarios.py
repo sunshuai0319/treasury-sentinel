@@ -53,6 +53,8 @@ def main() -> None:
     args = parser.parse_args()
 
     deployment = json.loads(DEPLOYMENT.read_text()) if DEPLOYMENT.exists() else {}
+    treasury_guard = deployment.get("treasuryGuard") or deployment.get("address") or "not recorded"
+    mock_usdc = deployment.get("mockUsdc") or deployment.get("allowedTokenSeeded") or "not recorded"
     runs = [run_demo_scenario(name) for name in SCENARIOS]
     for run in runs:
         expected = EXPECTED_ACTIONS[run.scenario]
@@ -66,8 +68,8 @@ def main() -> None:
         "",
         "## Base Sepolia contracts",
         "",
-        f"- TreasuryGuard: `{deployment.get('treasuryGuard', 'not recorded')}`",
-        f"- MockUSDC: `{deployment.get('mockUsdc', 'not recorded')}`",
+        f"- TreasuryGuard: `{treasury_guard}`",
+        f"- MockUSDC: `{mock_usdc}`",
         f"- Chain ID: `{deployment.get('chainId', 84532)}`",
         "",
         "## Scenario order",

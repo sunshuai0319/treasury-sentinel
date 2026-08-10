@@ -159,6 +159,31 @@ def test_analyze_defaults_to_async_and_exposes_progress_events(client: TestClien
     assert "event: status" in events.text
 
 
+def test_analyze_accepts_idempotency_key_and_does_not_restart_completed_analysis(client: TestClient):
+    payload = {
+        "vendor_id": "vendor_demo",
+        "invoice_id": "inv_demo_001",
+        "amount_units": 420_000_000,
+        "recipient_address": "0x1111111111111111111111111111111111111111",
+    }
+    created = client.post("/api/payment-requests", json=payload, headers={"Idempotency-Key": "idem-analyze"})
+    request_id = created.json()["request_id"]
+
+    first = client.post(
+        f"/api/payment-requests/{request_id}/analyze",
+        headers={"Idempotency-Key": "analysis-idem-1"},
+    )
+    second = client.post(
+        f"/api/payment-requests/{request_id}/analyze",
+        headers={"Idempotency-Key": "analysis-idem-1"},
+    )
+
+    assert first.status_code in {200, 202}
+    assert second.status_code == 200
+    assert second.json()["request_id"] == request_id
+    assert second.json()["status"] == "APPROVED"
+
+
 def test_review_payment_can_be_manually_approved_then_fail_closed_on_execute(client: TestClient):
     payload = {
         "vendor_id": "vendor_demo",
@@ -190,7 +215,7 @@ def test_approved_payment_executes_through_keeperhub(
     captured_idempotency_keys = []
 
     class FakeKeeperHubClient:
-        async def execute_contract_call(self, payload, idempotency_key=None):
+        async def execute_payment(self, payload, idempotency_key=None):
             captured_payloads.append(payload)
             captured_idempotency_keys.append(idempotency_key)
             return KeeperHubExecution(
@@ -224,7 +249,7 @@ def test_approved_payment_executes_through_keeperhub(
     request_id = created.json()["request_id"]
     client.post(f"/api/payment-requests/{request_id}/analyze?sync=true")
 
-    executed = client.post(f"/api/payment-requests/{request_id}/execute")
+    executed = client.post(f"/api/payment-requests/{request_id}/execute", headers={"Idempotency-Key": "exec-idem-1"})
 
     assert executed.status_code == 200
     body = executed.json()
@@ -234,14 +259,14 @@ def test_approved_payment_executes_through_keeperhub(
     assert captured_payloads[0]["contractAddress"] == "0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3"
     assert captured_payloads[0]["functionName"] == "executePaymentWithExpiry"
     assert captured_payloads[0]["arguments"]["amount"] == "420000000"
-    assert captured_idempotency_keys == [request_id]
+    assert captured_idempotency_keys == ["exec-idem-1"]
 
 
 def test_legacy_confirming_without_execution_id_can_retry_keeperhub_execution(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
     class FakeKeeperHubClient:
-        async def execute_contract_call(self, payload, idempotency_key=None):
+        async def execute_payment(self, payload, idempotency_key=None):
             return KeeperHubExecution(execution_id="exec_retry_123", status="submitted")
 
     monkeypatch.setattr(
@@ -280,7 +305,7 @@ def test_execution_blocked_without_execution_id_can_retry_after_configuration_fi
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
     class FakeKeeperHubClient:
-        async def execute_contract_call(self, payload, idempotency_key=None):
+        async def execute_payment(self, payload, idempotency_key=None):
             return KeeperHubExecution(execution_id="exec_unblocked_123", status="submitted")
 
     payload = {
@@ -353,3 +378,8 @@ def test_sse_events_stream_agent_timeline(client: TestClient):
     assert "event: critic" in events.text
     assert "event: final" in events.text
     assert "event: status" in events.text
+
+    first_event_id = next(line.removeprefix("id: ") for line in events.text.splitlines() if line.startswith("id: "))
+    resumed = client.get(f"/api/payment-requests/{request_id}/events?last_event_id={first_event_id}")
+    assert resumed.status_code == 200
+    assert f"id: {first_event_id}" not in resumed.text

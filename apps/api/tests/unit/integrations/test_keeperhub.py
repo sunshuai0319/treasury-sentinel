@@ -1,6 +1,6 @@
 import pytest
 
-from app.integrations.keeperhub import KeeperHubClient
+from app.integrations.keeperhub import KeeperHubClient, classify_execution_status
 
 
 def test_keeperhub_execution_maps_camel_and_snake_case_fields():
@@ -16,6 +16,23 @@ def test_keeperhub_execution_maps_camel_and_snake_case_fields():
     assert execution.execution_id == "exec_1"
     assert execution.status == "confirmed"
     assert execution.transaction_hash == "0xabc"
+    assert execution.category == "SUCCESS"
+
+
+def test_keeperhub_execution_maps_tx_hash_and_classifies_terminal_errors():
+    execution = KeeperHubClient._execution_from_json(
+        {
+            "execution_id": "exec_2",
+            "status": "submitted",
+            "txHash": "0xdef",
+            "error_code": "PERMISSION_DENIED",
+        }
+    )
+
+    assert execution.execution_id == "exec_2"
+    assert execution.transaction_hash == "0xdef"
+    assert execution.category == "TERMINAL"
+    assert classify_execution_status("pending") == "RETRYABLE"
 
 
 @pytest.mark.asyncio
@@ -63,3 +80,23 @@ async def test_keeperhub_contract_call_uses_direct_execution_api(monkeypatch: py
     assert calls[0]["json"]["simulate"] is True
     assert "simulate" not in calls[1]["json"]
     assert calls[1]["headers"]["Idempotency-Key"] == "pay_123"
+
+
+@pytest.mark.asyncio
+async def test_keeperhub_execute_payment_alias_delegates_to_direct_execution(monkeypatch: pytest.MonkeyPatch):
+    captured = {}
+
+    async def fake_execute_contract_call(self, payload, idempotency_key=None):
+        captured["payload"] = payload
+        captured["idempotency_key"] = idempotency_key
+        return KeeperHubClient._execution_from_json({"executionId": "direct_alias_123", "status": "submitted"})
+
+    monkeypatch.setattr(KeeperHubClient, "execute_contract_call", fake_execute_contract_call)
+
+    execution = await KeeperHubClient("kh_test", "https://app.keeperhub.com").execute_payment(
+        {"contractAddress": "0xabc"},
+        idempotency_key="idem-alias",
+    )
+
+    assert execution.execution_id == "direct_alias_123"
+    assert captured == {"payload": {"contractAddress": "0xabc"}, "idempotency_key": "idem-alias"}

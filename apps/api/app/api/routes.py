@@ -143,8 +143,17 @@ def analyze_payment_request(
     background_tasks: BackgroundTasks,
     response: Response,
     sync: bool = Query(False),
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
 ) -> PaymentRun | PaymentRequestView:
     repo = get_repository()
+    existing = repo.get(request_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="payment request not found")
+    if idempotency_key and existing.status == "ANALYZING":
+        response.status_code = status.HTTP_202_ACCEPTED
+        return to_view(existing)
+    if idempotency_key and existing.status not in {"SUBMITTED", "ANALYZING"}:
+        return to_view(existing)
     if sync:
         run = repo.analyze(
             request_id,
@@ -185,7 +194,10 @@ def approve_payment_request(request_id: str, payload: ApprovePaymentRequest) -> 
 
 
 @router.post("/payment-requests/{request_id}/execute", response_model=PaymentRequestView)
-async def execute_payment_request(request_id: str) -> PaymentRequestView:
+async def execute_payment_request(
+    request_id: str,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+) -> PaymentRequestView:
     repo = get_repository()
     record = repo.get(request_id)
     if not record:
@@ -223,8 +235,8 @@ async def execute_payment_request(request_id: str) -> PaymentRequestView:
         decision_hash=record.decision_hash,
     )
     try:
-        execution = await get_keeperhub_client().execute_contract_call(
-            payload.keeperhub_payload(), idempotency_key=request_id
+        execution = await get_keeperhub_client().execute_payment(
+            payload.keeperhub_payload(), idempotency_key=idempotency_key or request_id
         )
     except httpx.HTTPStatusError as exc:
         repo.mark_execution_blocked(request_id, f"KeeperHub rejected execution: {exc.response.status_code}")
@@ -254,16 +266,25 @@ def get_payment_audit(request_id: str) -> PaymentRequestView:
 
 
 @router.get("/payment-requests/{request_id}/events")
-def stream_payment_events(request_id: str) -> StreamingResponse:
+def stream_payment_events(
+    request_id: str,
+    last_event_id: str | None = Query(None),
+) -> StreamingResponse:
     if not get_repository().get(request_id):
         raise HTTPException(status_code=404, detail="payment request not found")
 
     def event_stream():
         sent_ids: set[str] = set()
+        resume_after_id = last_event_id
         deadline = time.monotonic() + 180
         while time.monotonic() < deadline:
             events = get_repository().timeline_events(request_id)
             for item in events:
+                if resume_after_id:
+                    if item["id"] == resume_after_id:
+                        sent_ids.add(item["id"])
+                        resume_after_id = None
+                    continue
                 if item["id"] in sent_ids:
                     continue
                 sent_ids.add(item["id"])

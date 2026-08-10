@@ -64,19 +64,21 @@ export async function createPaymentRequest(
   return (await response.json()) as PaymentRequest;
 }
 
-export async function analyzePaymentRequest(requestId: string): Promise<PaymentRun> {
+export async function analyzePaymentRequest(requestId: string, idempotencyKey?: string): Promise<PaymentRun> {
   const response = await fetch(`${apiBase}/payment-requests/${requestId}/analyze`, {
     method: "POST",
-    cache: "no-store"
+    cache: "no-store",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined
   });
   if (!response.ok) throw new Error(`Analyze payment failed: ${response.status}`);
   return (await response.json()) as PaymentRun;
 }
 
-export async function startPaymentAnalysis(requestId: string): Promise<PaymentRequest> {
+export async function startPaymentAnalysis(requestId: string, idempotencyKey?: string): Promise<PaymentRequest> {
   const response = await fetch(`${apiBase}/payment-requests/${requestId}/analyze`, {
     method: "POST",
-    cache: "no-store"
+    cache: "no-store",
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined
   });
   if (!response.ok) throw new Error(`Start analysis failed: ${response.status}`);
   return (await response.json()) as PaymentRequest;
@@ -88,6 +90,8 @@ export async function getPaymentRequest(requestId: string): Promise<PaymentReque
   return (await response.json()) as PaymentRequest;
 }
 
-export function paymentEventsUrl(requestId: string): string {
-  return `${apiBase}/payment-requests/${requestId}/events`;
+export function paymentEventsUrl(requestId: string, lastEventId?: string): string {
+  const url = new URL(`${apiBase}/payment-requests/${requestId}/events`);
+  if (lastEventId) url.searchParams.set("last_event_id", lastEventId);
+  return url.toString();
 }

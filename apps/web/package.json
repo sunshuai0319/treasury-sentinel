@@ -6,7 +6,8 @@
     "dev": "node scripts/dev.mjs",
     "build": "next build",
     "typecheck": "tsc --noEmit",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "test:e2e": "playwright test --config=playwright.config.ts"
   },
   "dependencies": {
     "next": "^15.5.0",

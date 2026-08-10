@@ -4,8 +4,8 @@ This file is generated from the deterministic local demo runner.
 
 ## Base Sepolia contracts
 
-- TreasuryGuard: `not recorded`
-- MockUSDC: `not recorded`
+- TreasuryGuard: `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`
+- MockUSDC: `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95`
 - Chain ID: `84532`
 
 ## Scenario order
@@ -38,9 +38,9 @@ This file is generated from the deterministic local demo runner.
 
 ## Local API workflow assertions
 
-- `normal` request `pay_895bc1f41b03` → `APPROVE`
-- `address_mismatch` request `pay_7b03c7a8d913` → `REJECT`
-- `over_limit` request `pay_4ea5bee5ce45` → `REVIEW`
+- `normal` request `pay_5be46e77ad32` → `APPROVE`
+- `address_mismatch` request `pay_18f93bd3b3f3` → `REJECT`
+- `over_limit` request `pay_faeeeb5b487e` → `REVIEW`
 
 ## KeeperHub / transaction evidence
 

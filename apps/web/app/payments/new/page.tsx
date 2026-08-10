@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { DecisionTimeline } from "@/components/decision-timeline/DecisionTimeline";
 import {
@@ -10,6 +10,7 @@ import {
   type DecisionStep,
   type PaymentRun
 } from "@/lib/api/treasury";
+import { usePaymentEvents } from "@/lib/api/usePaymentEvents";
 
 const defaultPayload = {
   vendor_id: "vendor_demo",
@@ -20,8 +21,50 @@ const defaultPayload = {
 
 export default function NewPaymentPage() {
   const [run, setRun] = useState<PaymentRun | null>(null);
+  const [requestId, setRequestId] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState("Ready");
   const [error, setError] = useState<string | null>(null);
+  const { events, error: eventError, connected } = usePaymentEvents(requestId);
+
+  useEffect(() => {
+    if (!requestId) return;
+    const steps: DecisionStep[] = [];
+    for (const event of events) {
+      if (["primary", "critic", "final"].includes(event.event)) {
+        const step = event.data as DecisionStep;
+        const existing = steps.findIndex((item) => item.actor === step.actor);
+        if (existing >= 0) {
+          steps[existing] = step;
+        } else {
+          steps.push(step);
+        }
+      }
+      if (event.event === "status") {
+        const payload = event.data as { status: string; request_id: string };
+        setStatus(`Status: ${payload.status}`);
+      }
+    }
+    const finalStep = steps.find((step) => step.actor === "final");
+    if (steps.length > 0) {
+      setRun({
+        request_id: requestId,
+        scenario: "workflow",
+        invoice_id: defaultPayload.invoice_id,
+        vendor_id: defaultPayload.vendor_id,
+        final_action: finalStep?.action || "REVIEW",
+        timeline: steps
+      });
+    }
+    if (!finalStep && connected) {
+      setStatus("Analyzing with policy retrieval and agents...");
+    }
+  }, [connected, events, requestId]);
+
+  useEffect(() => {
+    if (eventError) {
+      setError(eventError);
+    }
+  }, [eventError]);
 
   async function submitPayment() {
     setError(null);
@@ -29,50 +72,12 @@ export default function NewPaymentPage() {
     try {
       const request = await createPaymentRequest(defaultPayload, `web-demo-${Date.now()}`);
       setStatus("Analysis queued");
-      await startPaymentAnalysis(request.request_id);
-      subscribeToAnalysis(request.request_id);
+      setRequestId(request.request_id);
+      await startPaymentAnalysis(request.request_id, `analysis-${request.request_id}`);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : String(exc));
       setStatus("Failed");
     }
-  }
-
-  function subscribeToAnalysis(requestId: string) {
-    const source = new EventSource(paymentEventsUrl(requestId));
-    const steps: DecisionStep[] = [];
-    source.addEventListener("heartbeat", () => {
-      setStatus("Analyzing with policy retrieval and agents...");
-    });
-    for (const eventName of ["primary", "critic", "final"]) {
-      source.addEventListener(eventName, (event) => {
-        const step = JSON.parse(event.data) as DecisionStep;
-        const existing = steps.findIndex((item) => item.actor === step.actor);
-        if (existing >= 0) {
-          steps[existing] = step;
-        } else {
-          steps.push(step);
-        }
-        setRun({
-          request_id: requestId,
-          scenario: "workflow",
-          invoice_id: defaultPayload.invoice_id,
-          vendor_id: defaultPayload.vendor_id,
-          final_action: step.actor === "final" ? step.action : "REVIEW",
-          timeline: [...steps]
-        });
-        setStatus(step.actor === "final" ? `Final action: ${step.action}` : `${step.actor} completed`);
-      });
-    }
-    source.addEventListener("status", (event) => {
-      const payload = JSON.parse(event.data) as { status: string; request_id: string };
-      setStatus(`Status: ${payload.status}`);
-      if (!["SUBMITTED", "ANALYZING"].includes(payload.status)) {
-        source.close();
-      }
-    });
-    source.onerror = () => {
-      source.close();
-    };
   }
 
   return (
@@ -94,7 +99,7 @@ export default function NewPaymentPage() {
           <pre>{JSON.stringify(defaultPayload, null, 2)}</pre>
           <p>Status: {status}</p>
           {error ? <p className="errorText">{error}</p> : null}
-          {run ? <p>SSE: {paymentEventsUrl(run.request_id)}</p> : null}
+          {requestId ? <p>SSE: {paymentEventsUrl(requestId)}</p> : null}
         </section>
         <DecisionTimeline steps={run?.timeline || []} />
       </section>
