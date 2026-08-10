@@ -12,7 +12,7 @@ export default defineConfig({
     channel: "chrome"
   },
   webServer: {
-    command: "next dev -p 3100",
+    command: "npm run dev -- -H 127.0.0.1 -p 3100",
     url: "http://127.0.0.1:3100",
     reuseExistingServer: true,
     timeout: 120_000

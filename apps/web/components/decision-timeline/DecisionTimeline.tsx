@@ -16,6 +16,11 @@ export function DecisionTimeline({ steps }: { steps: DecisionStep[] }) {
         <FileSearch size={18} />
         <span>Decision chain</span>
       </div>
+      {steps.length === 0 ? (
+        <div className="emptyState">
+          <p>Analysis has not started yet. Submit the demo payment to stream Primary, Critic, Final and status events.</p>
+        </div>
+      ) : null}
       {steps.map((step) => {
         const Icon = actionIcon[step.action];
         return (

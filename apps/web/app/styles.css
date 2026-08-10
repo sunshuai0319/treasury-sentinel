@@ -102,9 +102,10 @@ button {
 }
 
 pre {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid var(--line);
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(203, 213, 225, 0.24);
   border-radius: 10px;
+  color: var(--panel-dark-text);
   overflow: auto;
   padding: 14px;
 }
@@ -260,6 +261,20 @@ dd {
 
 .step p {
   color: var(--muted);
+  margin: 0;
+}
+
+.emptyState {
+  align-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  display: flex;
+  min-height: 180px;
+  padding: 20px;
+}
+
+.emptyState p {
   margin: 0;
 }
 

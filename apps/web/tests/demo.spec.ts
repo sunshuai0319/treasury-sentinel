@@ -60,6 +60,7 @@ test("new payment flow submits a request and renders analysis", async ({ page })
   });
 
   await page.goto("/payments/new");
+  await expect(page.getByText("Analysis has not started yet")).toBeVisible();
   await page.getByRole("button", { name: /Submit demo payment/ }).click();
   await expect(page.getByText("Status: APPROVED")).toBeVisible();
   await expect(page.getByText("rules allow")).toBeVisible();
