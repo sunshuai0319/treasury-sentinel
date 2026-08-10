@@ -1,14 +1,29 @@
-import { getPaymentRequest, paymentEventsUrl } from "@/lib/api/treasury";
+"use client";
 
-export default async function PaymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  let payment;
-  let error: string | null = null;
-  try {
-    payment = await getPaymentRequest(id);
-  } catch (exc) {
-    error = exc instanceof Error ? exc.message : String(exc);
-  }
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { use } from "react";
+
+import { getPaymentRequest, paymentEventsUrl, type PaymentRequest } from "@/lib/api/treasury";
+
+export default function PaymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [payment, setPayment] = useState<PaymentRequest | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPaymentRequest(id)
+      .then((result) => {
+        if (!cancelled) setPayment(result);
+      })
+      .catch((exc) => {
+        if (!cancelled) setError(exc instanceof Error ? exc.message : String(exc));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   return (
     <main className="shell narrow">
@@ -17,11 +32,21 @@ export default async function PaymentDetailPage({ params }: { params: Promise<{ 
       <section className="copyPanel">
         {error ? (
           <p className="errorText">{error}</p>
-        ) : (
+        ) : payment ? (
           <>
+            <p>
+              Status: <strong className={`statusBadge status-${payment.status.toLowerCase()}`}>{payment.status}</strong>
+            </p>
             <pre>{JSON.stringify(payment, null, 2)}</pre>
-            <p>SSE: {payment ? paymentEventsUrl(payment.request_id) : "pending"}</p>
+            <p>SSE: {paymentEventsUrl(payment.request_id)}</p>
+            <p>
+              <Link className="primaryLink" href={`/audit/${payment.request_id}`}>
+                View audit trail
+              </Link>
+            </p>
           </>
+        ) : (
+          <p className="emptyState">Loading…</p>
         )}
       </section>
     </main>

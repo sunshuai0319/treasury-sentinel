@@ -305,3 +305,62 @@ test("audit page streams the real decision trail for a payment id", async ({ pag
   await expect(page.locator(".step", { hasText: "critic" })).toBeVisible();
   await expect(page.locator(".step", { hasText: "final" })).toBeVisible();
 });
+
+test("payments lists real requests with status and links to detail and audit", async ({ page }) => {
+  const approved = {
+    request_id: "pay_hist_approved",
+    vendor_id: "vendor_demo",
+    invoice_id: "inv_demo_001",
+    amount_units: 420000000,
+    recipient_address: "0x1111111111111111111111111111111111111111",
+    status: "APPROVED",
+    final_action: "APPROVE",
+    decision_hash: "0xabc",
+    keeperhub_execution_id: null,
+    transaction_hash: null
+  };
+  const review = {
+    request_id: "pay_hist_review",
+    vendor_id: "vendor_demo",
+    invoice_id: "inv_demo_over_limit",
+    amount_units: 700000000,
+    recipient_address: "0x1111111111111111111111111111111111111111",
+    status: "REVIEW",
+    final_action: "REVIEW",
+    decision_hash: null,
+    keeperhub_execution_id: null,
+    transaction_hash: null
+  };
+  const rejected = {
+    request_id: "pay_hist_rejected",
+    vendor_id: "vendor_demo",
+    invoice_id: "inv_demo_mismatch",
+    amount_units: 420000000,
+    recipient_address: "0x2222222222222222222222222222222222222222",
+    status: "REJECT",
+    final_action: "REJECT",
+    decision_hash: null,
+    keeperhub_execution_id: null,
+    transaction_hash: null
+  };
+  await page.route("**/api/payment-requests", async (route) => {
+    await route.fulfill({ json: [approved, review, rejected] });
+  });
+  await page.route("**/api/payment-requests/pay_hist_approved", async (route) => {
+    await route.fulfill({ json: approved });
+  });
+
+  await page.goto("/payments");
+  await expect(page.getByText("pay_hist_approved")).toBeVisible();
+  await expect(page.getByText("pay_hist_review")).toBeVisible();
+  await expect(page.getByText("pay_hist_rejected")).toBeVisible();
+  // Status badges render the raw status text.
+  await expect(page.getByText("APPROVED", { exact: true })).toBeVisible();
+  await expect(page.getByText("REVIEW", { exact: true })).toBeVisible();
+  await expect(page.getByText("REJECT", { exact: true })).toBeVisible();
+  await expect(page.getByText("420 USDC").first()).toBeVisible();
+  await expect(page.getByText("700 USDC")).toBeVisible();
+
+  await page.getByRole("link", { name: /pay_hist_approved/ }).click();
+  await expect(page.getByRole("link", { name: /View audit trail/ })).toHaveAttribute("href", "/audit/pay_hist_approved");
+});

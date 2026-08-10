@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, XCircle } from "lucide-react";
 
 import {
@@ -61,9 +62,18 @@ export default function ApprovalsPage() {
         <p className="emptyState">No payments awaiting review.</p>
       ) : (
         <section className="tableCard" aria-label="Review escalations">
+          <div className="tableRow approvalHeader" aria-hidden="true">
+            <span>Request</span>
+            <span>Vendor</span>
+            <span>Invoice</span>
+            <span>Amount</span>
+            <span>Actions</span>
+          </div>
           {requests.map((payment) => (
             <div className="tableRow approvalRow" key={payment.request_id}>
-              <strong>{payment.request_id}</strong>
+              <Link href={`/audit/${payment.request_id}`} title="View audit trail">
+                {payment.request_id}
+              </Link>
               <span>{payment.vendor_id}</span>
               <span>{payment.invoice_id}</span>
               <span>{`${(payment.amount_units / 1_000_000).toLocaleString()} USDC`}</span>
