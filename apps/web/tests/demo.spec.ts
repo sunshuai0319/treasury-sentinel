@@ -10,6 +10,7 @@ test("demo console exposes the five fixed scenarios", async ({ page }) => {
 });
 
 test("new payment flow submits a request and renders analysis", async ({ page }) => {
+  let eventRequests = 0;
   await page.route("**/api/payment-requests", async (route) => {
     await route.fulfill({
       json: {
@@ -44,6 +45,7 @@ test("new payment flow submits a request and renders analysis", async ({ page })
     });
   });
   await page.route("**/api/payment-requests/pay_web_test/events**", async (route) => {
+    eventRequests += 1;
     const stream = [
       'id: run_web_test:0\nevent: primary\ndata: {"actor":"primary","action":"APPROVE","confidence":0.72,"reasons":["primary checked policy"],"policy_refs":["payment-policy#2.1"]}\n\n',
       'id: run_web_test:1\nevent: critic\ndata: {"actor":"critic","action":"REVIEW","confidence":0.78,"reasons":["critic challenged"],"policy_refs":["payment-policy#2.1"]}\n\n',
@@ -64,6 +66,8 @@ test("new payment flow submits a request and renders analysis", async ({ page })
   await page.getByRole("button", { name: /Submit demo payment/ }).click();
   await expect(page.getByText("Status: APPROVED")).toBeVisible();
   await expect(page.getByText("rules allow")).toBeVisible();
+  await page.waitForTimeout(1500);
+  expect(eventRequests).toBe(1);
 });
 
 test("audit guide explains demo ids versus real payment request ids", async ({ page }) => {

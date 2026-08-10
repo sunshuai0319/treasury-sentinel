@@ -97,7 +97,7 @@ export default function NewPaymentPage() {
         <section className="copyPanel">
           <h2>Payload</h2>
           <pre>{JSON.stringify(defaultPayload, null, 2)}</pre>
-          <p>Status: {status}</p>
+          <p>{status.startsWith("Status:") ? status : `Status: ${status}`}</p>
           {error ? <p className="errorText">{error}</p> : null}
           {requestId ? <p>SSE: {paymentEventsUrl(requestId)}</p> : null}
         </section>
