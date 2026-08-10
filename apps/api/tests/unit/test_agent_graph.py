@@ -120,7 +120,9 @@ def test_langgraph_uses_llm_primary_and_critic_when_provider_is_injected():
 
     assert run.final_action == "APPROVE"
     assert run.timeline[0].reasons == ["doubao primary cites policy and sees low risk"]
-    assert run.timeline[1].reasons == ["critic found no blocking issue beyond deterministic rules"]
+    assert run.timeline[1].reasons == [
+        "critic found no blocking issue beyond deterministic rules (批评代理在确定性规则之外未发现阻断问题)"
+    ]
 
 
 def test_langgraph_llm_review_is_not_overridden_by_deterministic_approve():
@@ -141,7 +143,8 @@ def test_langgraph_llm_review_is_not_overridden_by_deterministic_approve():
 
     assert run.final_action == "REVIEW"
     assert run.timeline[-1].action == "REVIEW"
-    assert "doubao primary/critic recommended REVIEW" in run.timeline[-1].reasons
+    assert "doubao primary/critic recommended REVIEW" in run.timeline[-1].reasons[1]
+    assert "豆包主/批评代理建议 REVIEW" in run.timeline[-1].reasons[1]
 
 
 def test_langgraph_fails_closed_when_llm_primary_fails():

@@ -123,7 +123,9 @@ class TreasuryAgentGraph:
                 actor="primary",
                 action="APPROVE",
                 confidence=0.72,
-                reasons=["primary proposes payment only after retrieval and deterministic rule check"],
+                reasons=[
+                    "primary proposes payment only after retrieval and deterministic rule check (检索政策并经过确定性规则检查后，主代理才建议付款)"
+                ],
                 policy_refs=refs,
             ).model_dump()
         )
@@ -146,7 +148,7 @@ class TreasuryAgentGraph:
                     action=critic_action_to_timeline(critic.recommended_action),
                     confidence=0.85 if critic.challenge else 0.7,
                     reasons=critic.blocking_issues
-                    or ["critic found no blocking issue beyond deterministic rules"],
+                    or ["critic found no blocking issue beyond deterministic rules (批评代理在确定性规则之外未发现阻断问题)"],
                     policy_refs=refs,
                 ).model_dump()
             )
@@ -156,7 +158,9 @@ class TreasuryAgentGraph:
                 actor="critic",
                 action="REVIEW",
                 confidence=0.78,
-                reasons=["critic requires deterministic rules to make the final execution decision"],
+                reasons=[
+                    "critic requires deterministic rules to make the final execution decision (批评代理要求以确定性规则作出最终执行决定)"
+                ],
                 policy_refs=self._policy_refs(state),
             ).model_dump()
         )
@@ -192,7 +196,10 @@ class TreasuryAgentGraph:
             llm_action = critic_final_action(primary, critic)
             final_action = _most_conservative_action(final_action, llm_action)
             if llm_action != result.decision.value:
-                reasons.append(f"doubao primary/critic recommended {llm_action}")
+                reasons.append(
+                    f"doubao primary/critic recommended {llm_action} "
+                    f"(豆包主/批评代理建议 {llm_action})"
+                )
             policy_refs = _unique_refs(
                 [
                     *policy_refs,
