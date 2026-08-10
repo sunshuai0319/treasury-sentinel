@@ -442,6 +442,36 @@ dd {
   margin: 0;
 }
 
+.pagination {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.pageInfo {
+  color: var(--panel-dark-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pageButton {
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  color: var(--panel-dark-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+}
+
+.pageButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
 dl {
   margin: 0;
 }

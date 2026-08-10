@@ -3,11 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
+import Pagination from "@/components/Pagination";
 import { listPaymentRequests, type PaymentRequest } from "@/lib/api/treasury";
+
+const pageSize = 5;
 
 export default function PaymentsPage() {
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(requests.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const visible = requests.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const refresh = useCallback(async () => {
     try {
@@ -47,7 +54,7 @@ export default function PaymentsPage() {
             <span>Amount</span>
             <span>Status</span>
           </div>
-          {requests.map((payment) => (
+          {visible.map((payment) => (
             <Link className="tableRow paymentsRow" href={`/payments/${payment.request_id}`} key={payment.request_id}>
               <strong>{payment.request_id}</strong>
               <span>{payment.vendor_id}</span>
@@ -58,6 +65,7 @@ export default function PaymentsPage() {
           ))}
         </section>
       )}
+      <Pagination page={safePage} pageCount={pageCount} onPageChange={setPage} />
     </main>
   );
 }

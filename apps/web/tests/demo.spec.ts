@@ -209,6 +209,10 @@ test("audit guide explains demo ids versus real payment request ids", async ({ p
   await page.getByRole("link", { name: /Audit trail guide/ }).click();
   await expect(page.getByText("不是后端 PostgreSQL 里的真实付款请求 ID")).toBeVisible();
   await expect(page.getByText("/audit/pay_xxx")).toBeVisible();
+  // The guide also renders a static example chain so the page is not empty.
+  await expect(page.getByText("Decision chain")).toBeVisible();
+  await expect(page.locator(".step", { hasText: "primary" })).toBeVisible();
+  await expect(page.getByText(/示例决策链/)).toBeVisible();
 });
 
 
@@ -363,4 +367,38 @@ test("payments lists real requests with status and links to detail and audit", a
 
   await page.getByRole("link", { name: /pay_hist_approved/ }).click();
   await expect(page.getByRole("link", { name: /View audit trail/ })).toHaveAttribute("href", "/audit/pay_hist_approved");
+});
+
+test("payments list paginates when there are more than five requests", async ({ page }) => {
+  const all = Array.from({ length: 7 }, (_, i) => ({
+    request_id: `pay_page_${i + 1}`,
+    vendor_id: "vendor_demo",
+    invoice_id: `inv_page_${i + 1}`,
+    amount_units: 420000000 + i * 1000000,
+    recipient_address: "0x1111111111111111111111111111111111111111",
+    status: i % 2 === 0 ? "APPROVED" : "REVIEW",
+    final_action: i % 2 === 0 ? "APPROVE" : "REVIEW",
+    decision_hash: null,
+    keeperhub_execution_id: null,
+    transaction_hash: null
+  }));
+  await page.route("**/api/payment-requests", async (route) => {
+    await route.fulfill({ json: all });
+  });
+
+  await page.goto("/payments");
+  await expect(page.getByText("pay_page_1")).toBeVisible();
+  await expect(page.getByText("pay_page_5")).toBeVisible();
+  await expect(page.getByText("pay_page_6")).not.toBeVisible();
+  await expect(page.getByText("Page 1 of 2")).toBeVisible();
+
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByText("pay_page_6")).toBeVisible();
+  await expect(page.getByText("pay_page_7")).toBeVisible();
+  await expect(page.getByText("pay_page_1")).not.toBeVisible();
+  await expect(page.getByText("Page 2 of 2")).toBeVisible();
+
+  await page.getByRole("button", { name: "Prev", exact: true }).click();
+  await expect(page.getByText("pay_page_1")).toBeVisible();
+  await expect(page.getByText("pay_page_6")).not.toBeVisible();
 });

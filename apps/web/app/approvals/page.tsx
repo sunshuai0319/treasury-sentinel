@@ -4,17 +4,24 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, XCircle } from "lucide-react";
 
+import Pagination from "@/components/Pagination";
 import {
   decidePaymentRequest,
   listPaymentRequests,
   type PaymentRequest
 } from "@/lib/api/treasury";
 
+const pageSize = 5;
+
 export default function ApprovalsPage() {
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [approver, setApprover] = useState("finance.lead");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(requests.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const visible = requests.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const refresh = useCallback(async () => {
     try {
@@ -69,7 +76,7 @@ export default function ApprovalsPage() {
             <span>Amount</span>
             <span>Actions</span>
           </div>
-          {requests.map((payment) => (
+          {visible.map((payment) => (
             <div className="tableRow approvalRow" key={payment.request_id}>
               <Link href={`/audit/${payment.request_id}`} title="View audit trail">
                 {payment.request_id}
@@ -101,6 +108,7 @@ export default function ApprovalsPage() {
           ))}
         </section>
       )}
+      <Pagination page={safePage} pageCount={pageCount} onPageChange={setPage} />
     </main>
   );
 }
