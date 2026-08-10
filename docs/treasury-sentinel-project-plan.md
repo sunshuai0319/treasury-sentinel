@@ -127,7 +127,6 @@ treasury-sentinel/
 ├── apps/web/.env.example
 ├── contracts/.env.example
 ├── .gitignore
-├── Makefile
 ├── docker-compose.dev.yml          # 可选：只启动项目辅助服务，不部署现有 PG/Milvus
 ├── apps/
 │   ├── web/                        # Next.js 控制台
