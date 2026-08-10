@@ -31,6 +31,13 @@ PYTHONPATH=. uv run python ../../knowledge/scripts/ingest_policies.py --dry-run
 PYTHONPATH=../..:. uv run python ../../scripts/check_milvus_connection.py
 ```
 
+启动 API：
+
+```bash
+cd apps/api
+uv run uvicorn app.main:app --reload --port 8000
+```
+
 启动前端控制台：
 
 ```bash
