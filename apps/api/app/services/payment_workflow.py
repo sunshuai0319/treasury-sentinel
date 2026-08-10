@@ -306,13 +306,23 @@ class PaymentWorkflowRepository:
     def list_by_status(self, status: str) -> list[PaymentRequestRecord]:
         with self.session_factory() as session:
             rows = session.scalars(
-                select(PaymentRequestTable).where(PaymentRequestTable.status == status)
+                select(PaymentRequestTable)
+                .where(PaymentRequestTable.status == status)
+                .order_by(
+                    PaymentRequestTable.created_at.desc(),
+                    PaymentRequestTable.request_id.desc(),
+                )
             ).all()
             return [record_from_table(row) for row in rows]
 
     def list_all(self) -> list[PaymentRequestRecord]:
         with self.session_factory() as session:
-            rows = session.scalars(select(PaymentRequestTable)).all()
+            rows = session.scalars(
+                select(PaymentRequestTable).order_by(
+                    PaymentRequestTable.created_at.desc(),
+                    PaymentRequestTable.request_id.desc(),
+                )
+            ).all()
             return [record_from_table(row) for row in rows]
 
     def mark_execution_blocked(self, request_id: str, reason: str) -> PaymentRequestRecord | None:

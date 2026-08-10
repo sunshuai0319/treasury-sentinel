@@ -1,9 +1,11 @@
+from datetime import datetime
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db import Base
-from app.domain.tables import InvoiceTable, VendorTable
+from app.domain.tables import InvoiceTable, PaymentRequestTable, VendorTable
 from app.services.payment_workflow import PaymentWorkflowRepository
 
 
@@ -62,3 +64,45 @@ def seed(session: Session) -> None:
         )
     )
     session.commit()
+
+
+def test_list_orders_by_created_at_newest_first():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(engine)
+    with SessionLocal() as session:
+        seed(session)
+        session.add_all(
+            [
+                PaymentRequestTable(
+                    request_id="pay_old",
+                    idempotency_key="key-old",
+                    vendor_id="vendor_demo",
+                    invoice_id="inv_demo",
+                    amount_units=100_000_000,
+                    recipient_address="0x1111111111111111111111111111111111111111",
+                    status="APPROVED",
+                    created_at=datetime(2026, 1, 1),
+                ),
+                PaymentRequestTable(
+                    request_id="pay_new",
+                    idempotency_key="key-new",
+                    vendor_id="vendor_demo",
+                    invoice_id="inv_demo",
+                    amount_units=100_000_000,
+                    recipient_address="0x1111111111111111111111111111111111111111",
+                    status="REVIEW",
+                    created_at=datetime(2026, 6, 1),
+                ),
+            ]
+        )
+        session.commit()
+
+    repo = PaymentWorkflowRepository(SessionLocal)
+    assert [r.request_id for r in repo.list_all()] == ["pay_new", "pay_old"]
+    assert [r.request_id for r in repo.list_by_status("REVIEW")] == ["pay_new"]
+    assert [r.request_id for r in repo.list_by_status("APPROVED")] == ["pay_old"]
