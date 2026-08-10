@@ -141,9 +141,14 @@ pre {
 }
 
 .presetButton.active,
-.presetButton:hover {
+.presetButton:hover:not(:disabled) {
   border-color: rgba(248, 250, 252, 0.7);
   background: rgba(15, 23, 42, 0.76);
+}
+
+.presetButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .presetButton span {

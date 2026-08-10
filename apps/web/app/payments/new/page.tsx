@@ -60,6 +60,9 @@ export default function NewPaymentPage() {
   const { events, error: eventError, connected } = usePaymentEvents(requestId);
   const selectedPreset = paymentPresets.find((preset) => preset.id === selectedPresetId) || paymentPresets[0];
   const selectedPayload = selectedPreset.payload;
+  // While analysis streams via SSE, switching presets would tear down the
+  // request (requestId -> undefined) and lose the in-flight result.
+  const analyzing = requestId !== undefined && connected;
 
   useEffect(() => {
     if (!requestId) return;
@@ -140,6 +143,7 @@ export default function NewPaymentPage() {
               <button
                 className={`presetButton ${preset.id === selectedPresetId ? "active" : ""}`}
                 key={preset.id}
+                disabled={analyzing}
                 onClick={() => {
                   setSelectedPresetId(preset.id);
                   setRun(null);
