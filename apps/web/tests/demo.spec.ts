@@ -73,6 +73,76 @@ test("new payment flow submits a request and renders analysis", async ({ page })
   expect(eventRequests).toBe(1);
 });
 
+test("resubmitting a payment does not render the previous run's timeline", async ({ page }) => {
+  let createdCount = 0;
+  await page.route("**/api/payment-requests", async (route) => {
+    createdCount += 1;
+    const id = createdCount === 1 ? "pay_first_web_test" : "pay_second_web_test";
+    await route.fulfill({
+      json: {
+        request_id: id,
+        vendor_id: "vendor_demo",
+        invoice_id: "inv_demo_001",
+        amount_units: 420000000,
+        recipient_address: "0x1111111111111111111111111111111111111111",
+        status: "SUBMITTED",
+        final_action: null,
+        decision_hash: null,
+        keeperhub_execution_id: null,
+        transaction_hash: null
+      }
+    });
+  });
+  const analyze = async (route: { fulfill: (arg0: { status: number; json: object }) => Promise<void> }, id: string) => {
+    await route.fulfill({
+      status: 202,
+      json: {
+        request_id: id,
+        invoice_id: "inv_demo_001",
+        vendor_id: "vendor_demo",
+        amount_units: 420000000,
+        recipient_address: "0x1111111111111111111111111111111111111111",
+        status: "ANALYZING",
+        final_action: null,
+        decision_hash: null,
+        keeperhub_execution_id: null,
+        transaction_hash: null
+      }
+    });
+  };
+  await page.route("**/api/payment-requests/pay_first_web_test/analyze", async (route) => analyze(route, "pay_first_web_test"));
+  await page.route("**/api/payment-requests/pay_second_web_test/analyze", async (route) => analyze(route, "pay_second_web_test"));
+  await page.route("**/api/payment-requests/pay_first_web_test/events**", async (route) => {
+    const stream = [
+      'id: run_first:0\nevent: primary\ndata: {"actor":"primary","action":"APPROVE","confidence":0.72,"reasons":["primary checked policy"],"policy_refs":["payment-policy#2.1"]}\n\n',
+      'id: run_first:1\nevent: critic\ndata: {"actor":"critic","action":"APPROVE","confidence":0.78,"reasons":["critic agrees"],"policy_refs":["payment-policy#2.1"]}\n\n',
+      'id: run_first:2\nevent: final\ndata: {"actor":"final","action":"APPROVE","confidence":1,"reasons":["rules allow"],"policy_refs":["payment-policy#2.1"]}\n\n',
+      'id: pay_first_web_test:status\nevent: status\ndata: {"request_id":"pay_first_web_test","status":"APPROVED","decision_hash":"0xabc","keeperhub_execution_id":null,"transaction_hash":null}\n\n'
+    ].join("");
+    await route.fulfill({
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+      body: stream
+    });
+  });
+  // Second request's event stream stays open without events: the previous
+  // run's timeline must not leak into it while nothing has streamed yet.
+  await page.route("**/api/payment-requests/pay_second_web_test/events**", async () => {
+    // Intentionally never fulfill — the stream is open but silent.
+  });
+
+  await page.goto("/payments/new");
+  await page.getByRole("button", { name: /Submit Normal auto payment/ }).click();
+  await expect(page.getByText("Status: APPROVED")).toBeVisible();
+  await expect(page.getByText("rules allow")).toBeVisible();
+
+  // Same preset again — creates a second, identical payment request.
+  await page.getByRole("button", { name: /Submit Normal auto payment/ }).click();
+  await expect(page.getByText(/pay_second_web_test/)).toBeVisible();
+  await expect(page.getByText("rules allow")).not.toBeVisible();
+  await expect(page.getByText("Analysis has not started yet")).toBeVisible();
+});
+
 test("new payment preset can demonstrate over-limit review path", async ({ page }) => {
   let createdPayload: { amount_units: number; invoice_id: string } | undefined;
   await page.route("**/api/payment-requests", async (route) => {

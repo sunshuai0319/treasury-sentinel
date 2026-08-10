@@ -18,6 +18,10 @@ export function usePaymentEvents(requestId?: string) {
   const [events, setEvents] = useState<SseEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  // The request the current `events` array belongs to. State updates are
+  // async, so on a requestId change callers can use this to avoid reading a
+  // stale `events` snapshot from the previous request before it is cleared.
+  const [eventsRequestId, setEventsRequestId] = useState<string | undefined>(undefined);
   const lastEventIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
@@ -30,6 +34,7 @@ export function usePaymentEvents(requestId?: string) {
     let completed = false;
 
     setEvents([]);
+    setEventsRequestId(requestId);
     setError(null);
     lastEventIdRef.current = undefined;
 
@@ -82,7 +87,7 @@ export function usePaymentEvents(requestId?: string) {
     };
   }, [requestId]);
 
-  return { events, error, connected, lastEventId: lastEventIdRef.current };
+  return { events, eventsRequestId, error, connected, lastEventId: lastEventIdRef.current };
 }
 
 function isTerminalStatus(data: unknown): boolean {

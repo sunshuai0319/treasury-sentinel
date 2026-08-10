@@ -57,7 +57,7 @@ export default function NewPaymentPage() {
   const [requestId, setRequestId] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState("Ready");
   const [error, setError] = useState<string | null>(null);
-  const { events, error: eventError, connected } = usePaymentEvents(requestId);
+  const { events, eventsRequestId, error: eventError, connected } = usePaymentEvents(requestId);
   const selectedPreset = paymentPresets.find((preset) => preset.id === selectedPresetId) || paymentPresets[0];
   const selectedPayload = selectedPreset.payload;
   // While analysis streams via SSE, switching presets would tear down the
@@ -65,7 +65,9 @@ export default function NewPaymentPage() {
   const analyzing = requestId !== undefined && connected;
 
   useEffect(() => {
-    if (!requestId) return;
+    // Guard against the stale `events` snapshot from the previous request:
+    // on submit, requestId changes before usePaymentEvents clears events.
+    if (!requestId || eventsRequestId !== requestId) return;
     const steps: DecisionStep[] = [];
     for (const event of events) {
       if (["primary", "critic", "final"].includes(event.event)) {
@@ -96,7 +98,7 @@ export default function NewPaymentPage() {
     if (!finalStep && connected) {
       setStatus("Analyzing with policy retrieval and agents...");
     }
-  }, [connected, events, requestId, selectedPayload.invoice_id, selectedPayload.vendor_id]);
+  }, [connected, events, eventsRequestId, requestId, selectedPayload.invoice_id, selectedPayload.vendor_id]);
 
   useEffect(() => {
     if (eventError) {
