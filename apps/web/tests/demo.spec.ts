@@ -204,15 +204,53 @@ test("new payment preset can demonstrate over-limit review path", async ({ page 
   expect(createdPayload).toMatchObject({ amount_units: 700000000, invoice_id: "inv_demo_over_limit" });
 });
 
-test("audit guide explains demo ids versus real payment request ids", async ({ page }) => {
+test("audit menu lists payments and opens a request's decision trail", async ({ page }) => {
+  const review = {
+    request_id: "pay_audit_menu",
+    vendor_id: "vendor_demo",
+    invoice_id: "inv_demo_over_limit",
+    amount_units: 700000000,
+    recipient_address: "0x1111111111111111111111111111111111111111",
+    status: "REVIEW",
+    final_action: "REVIEW",
+    decision_hash: null,
+    keeperhub_execution_id: null,
+    transaction_hash: null
+  };
+  await page.route("**/api/payment-requests", async (route) => {
+    await route.fulfill({ json: [review] });
+  });
+  await page.route("**/api/payment-requests/pay_audit_menu/events**", async (route) => {
+    const stream = [
+      'id: run_menu:0\nevent: primary\ndata: {"actor":"primary","action":"REVIEW","confidence":0.72,"reasons":["amount exceeds auto-payment limit"],"policy_refs":["payment-policy#2.2"]}\n\n',
+      'id: run_menu:1\nevent: critic\ndata: {"actor":"critic","action":"REVIEW","confidence":0.78,"reasons":["critic requires finance approval"],"policy_refs":["payment-policy#2.2"]}\n\n',
+      'id: run_menu:2\nevent: final\ndata: {"actor":"final","action":"REVIEW","confidence":1,"reasons":["amount requires finance manager approval"],"policy_refs":["payment-policy#2.2"]}\n\n',
+      'id: pay_audit_menu:status\nevent: status\ndata: {"request_id":"pay_audit_menu","status":"REVIEW","decision_hash":"0xdef","keeperhub_execution_id":null,"transaction_hash":null}\n\n'
+    ].join("");
+    await route.fulfill({
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+      body: stream
+    });
+  });
+
   await page.goto("/");
-  await page.getByRole("link", { name: /Audit trail guide/ }).click();
-  await expect(page.getByText("不是后端 PostgreSQL 里的真实付款请求 ID")).toBeVisible();
-  await expect(page.getByText("/audit/pay_xxx")).toBeVisible();
-  // The guide also renders a static example chain so the page is not empty.
-  await expect(page.getByText("Decision chain")).toBeVisible();
+  await page.getByRole("link", { name: /Audit trail/ }).click();
+  await expect(page.getByText("pay_audit_menu")).toBeVisible();
+  await expect(page.getByText("700 USDC")).toBeVisible();
+
+  await page.getByRole("link", { name: /pay_audit_menu/ }).click();
+  await expect(page.getByText("amount requires finance manager approval")).toBeVisible();
   await expect(page.locator(".step", { hasText: "primary" })).toBeVisible();
-  await expect(page.getByText(/示例决策链/)).toBeVisible();
+});
+
+test("old demo-normal guide url redirects to the audit index", async ({ page }) => {
+  await page.route("**/api/payment-requests", async (route) => {
+    await route.fulfill({ json: [] });
+  });
+  await page.goto("/audit/demo-normal");
+  await expect(page).toHaveURL(/\/audit$/);
+  await expect(page.getByText("No payment requests yet")).toBeVisible();
 });
 
 
@@ -366,7 +404,7 @@ test("payments lists real requests with status and links to detail and audit", a
   await expect(page.getByText("700 USDC")).toBeVisible();
 
   await page.getByRole("link", { name: /pay_hist_approved/ }).click();
-  await expect(page.getByRole("link", { name: /View audit trail/ })).toHaveAttribute("href", "/audit/pay_hist_approved");
+  await expect(page.getByText("APPROVED", { exact: true })).toBeVisible();
 });
 
 test("payments list paginates when there are more than five requests", async ({ page }) => {

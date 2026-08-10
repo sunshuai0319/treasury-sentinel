@@ -17,7 +17,7 @@ export default function Home() {
         <Link href="/demo">Run five demo scenarios</Link>
         <Link href="/payments">Inspect payments</Link>
         <Link href="/approvals">Review escalations</Link>
-        <Link href="/audit/demo-normal">Audit trail guide</Link>
+        <Link href="/audit">Audit trail</Link>
       </section>
     </main>
   );

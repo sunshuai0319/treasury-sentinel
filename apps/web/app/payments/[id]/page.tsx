@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { use } from "react";
 
 import { getPaymentRequest, paymentEventsUrl, type PaymentRequest } from "@/lib/api/treasury";
@@ -39,11 +38,6 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
             </p>
             <pre>{JSON.stringify(payment, null, 2)}</pre>
             <p>SSE: {paymentEventsUrl(payment.request_id)}</p>
-            <p>
-              <Link className="primaryLink" href={`/audit/${payment.request_id}`}>
-                View audit trail
-              </Link>
-            </p>
           </>
         ) : (
           <p className="emptyState">Loading…</p>
