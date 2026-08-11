@@ -28,6 +28,18 @@ The KeeperHub wallet has `EXECUTOR_ROLE` for normal approved payments and `GUARD
 5. Writes KeeperHub `execution_id`, status and transaction hash back to PostgreSQL.
 6. The execution monitor can later poll the execution status and update the request to `CONFIRMED` or `FAILED`.
 
+### Automatic execution (方案 A)
+
+Analysis `APPROVE` and manual `approve` now submit to KeeperHub automatically; the separate
+`POST /api/payment-requests/{request_id}/execute` endpoint remains as a manual/retry path:
+
+- Low-risk analysis ending in `APPROVE` → auto-executes right after analysis (sync or async).
+- `REVIEW` requests approved by an operator → auto-executes right after `approve`.
+- If KeeperHub credentials/wallet/guard/USDC are not configured, execution stays `APPROVED`
+  (no broadcast) and can be completed later via the manual `execute` endpoint once configured.
+- Idempotency: a request that already has a KeeperHub `execution_id` is never broadcast again.
+- Broadcast failure marks the request `EXECUTION_BLOCKED` for auditability; retry via `execute`.
+
 The calldata selector is `0xde62cb4b`.
 
 ## Verified execution evidence

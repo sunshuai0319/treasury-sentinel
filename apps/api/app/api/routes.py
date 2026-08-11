@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from datetime import datetime
@@ -10,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.agent.demo import run_demo_scenario
 from app.agent.state import PaymentRun
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db import session_factory
 from app.integrations.keeperhub import KeeperHubClient
 from app.services.execution_payload import build_treasury_execution_payload
@@ -87,6 +88,67 @@ def get_keeperhub_client() -> KeeperHubClient:
     return KeeperHubClient(settings.keeperhub_api_key, settings.keeperhub_base_url)
 
 
+def execution_configured(settings: Settings) -> bool:
+    return bool(
+        settings.keeperhub_api_key
+        and settings.keeperhub_wallet_address
+        and settings.treasury_guard_address
+        and settings.demo_usdc_address
+    )
+
+
+async def submit_treasury_execution(
+    *,
+    repo: PaymentWorkflowRepository,
+    keeperhub_client: KeeperHubClient,
+    settings: Settings,
+    request_id: str,
+    idempotency_key: str | None,
+) -> PaymentRequestRecord | None:
+    """将已 APPROVED 的付款请求提交到 KeeperHub 上链执行。
+
+    幂等:已存在 execution_id 的请求直接返回,不重复广播。
+    配置缺失时静默返回(保持 APPROVED),等待配置齐全后由手动 execute 端点补执行。
+    """
+    record = repo.get(request_id)
+    if not record:
+        return None
+    if record.keeperhub_execution_id:
+        return record
+    if record.final_action != "APPROVE" or not record.decision_hash:
+        return record
+    wallet = settings.keeperhub_wallet_address
+    treasury_guard = settings.treasury_guard_address
+    token = settings.demo_usdc_address
+    if not (settings.keeperhub_api_key and wallet and treasury_guard and token):
+        return record
+    payload = build_treasury_execution_payload(
+        chain_id=settings.chain_id,
+        treasury_guard_address=treasury_guard,
+        token_address=token,
+        keeperhub_wallet_address=wallet,
+        recipient_address=record.recipient_address,
+        amount_units=record.amount_units,
+        invoice_id=record.invoice_id,
+        vendor_id=record.vendor_id,
+        decision_hash=record.decision_hash,
+    )
+    try:
+        execution = await keeperhub_client.execute_payment(
+            payload.keeperhub_payload(), idempotency_key=idempotency_key
+        )
+    except httpx.HTTPError as exc:
+        repo.mark_execution_blocked(request_id, f"KeeperHub execution failed: {exc}")
+        return repo.get(request_id)
+    return repo.update_execution_status(
+        request_id=request_id,
+        execution_id=execution.execution_id,
+        status=execution.status,
+        transaction_hash=execution.transaction_hash,
+        error_code=execution.error_code,
+    )
+
+
 @router.get("/health")
 def health() -> HealthCheck:
     settings = get_settings()
@@ -146,7 +208,7 @@ def get_payment_request(request_id: str) -> PaymentRequestView:
 
 
 @router.post("/payment-requests/{request_id}/analyze")
-def analyze_payment_request(
+async def analyze_payment_request(
     request_id: str,
     background_tasks: BackgroundTasks,
     response: Response,
@@ -163,7 +225,8 @@ def analyze_payment_request(
     if idempotency_key and existing.status not in {"SUBMITTED", "ANALYZING"}:
         return to_view(existing)
     if sync:
-        run = repo.analyze(
+        run = await asyncio.to_thread(
+            repo.analyze,
             request_id,
             policy_retriever=get_live_policy_retriever(),
             llm_decision_provider=get_live_llm_decision_provider(),
@@ -171,6 +234,14 @@ def analyze_payment_request(
         )
         if not run:
             raise HTTPException(status_code=404, detail="payment request not found")
+        if run.final_action == "APPROVE":
+            await submit_treasury_execution(
+                repo=repo,
+                keeperhub_client=get_keeperhub_client(),
+                settings=get_settings(),
+                request_id=request_id,
+                idempotency_key=idempotency_key or request_id,
+            )
         return run
 
     record = repo.mark_analyzing(request_id)
@@ -181,23 +252,40 @@ def analyze_payment_request(
     return to_view(record)
 
 
-def _run_analysis_background(request_id: str) -> None:
+async def _run_analysis_background(request_id: str) -> None:
     try:
-        get_repository().analyze(
+        run = await asyncio.to_thread(
+            get_repository().analyze,
             request_id,
             policy_retriever=get_live_policy_retriever(),
             llm_decision_provider=get_live_llm_decision_provider(),
             doubao_decision_mode=get_settings().doubao_decision_mode,
         )
+        if run and run.final_action == "APPROVE":
+            await submit_treasury_execution(
+                repo=get_repository(),
+                keeperhub_client=get_keeperhub_client(),
+                settings=get_settings(),
+                request_id=request_id,
+                idempotency_key=request_id,
+            )
     except Exception as exc:  # noqa: BLE001 - background task must fail closed and unblock SSE/UI
         get_repository().mark_analysis_failed(request_id, f"analysis failed: {type(exc).__name__}: {exc}")
 
 
 @router.post("/payment-requests/{request_id}/approve", response_model=PaymentRequestView)
-def approve_payment_request(request_id: str, payload: ApprovePaymentRequest) -> PaymentRequestView:
-    record = get_repository().approve(request_id, payload.approver, payload.reason)
+async def approve_payment_request(request_id: str, payload: ApprovePaymentRequest) -> PaymentRequestView:
+    repo = get_repository()
+    record = repo.approve(request_id, payload.approver, payload.reason)
     if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
+    record = await submit_treasury_execution(
+        repo=repo,
+        keeperhub_client=get_keeperhub_client(),
+        settings=get_settings(),
+        request_id=request_id,
+        idempotency_key=request_id,
+    ) or record
     return to_view(record)
 
 
@@ -234,46 +322,19 @@ async def execute_payment_request(
     if record.status != "APPROVED" and not can_retry_legacy_confirming and not can_retry_blocked_execution:
         raise HTTPException(status_code=409, detail="payment request is not approved")
     settings = get_settings()
-    if (
-        not settings.keeperhub_api_key
-        or not settings.keeperhub_wallet_address
-        or not settings.treasury_guard_address
-        or not settings.demo_usdc_address
-    ):
+    if not execution_configured(settings):
         repo.mark_execution_blocked(request_id, "KeeperHub execution is not configured")
         raise HTTPException(status_code=503, detail="KeeperHub execution is not configured")
     if not record.decision_hash:
         repo.mark_execution_blocked(request_id, "payment request has no decision hash")
         raise HTTPException(status_code=409, detail="payment request has no decision hash")
 
-    payload = build_treasury_execution_payload(
-        chain_id=settings.chain_id,
-        treasury_guard_address=settings.treasury_guard_address,
-        token_address=settings.demo_usdc_address,
-        keeperhub_wallet_address=settings.keeperhub_wallet_address,
-        recipient_address=record.recipient_address,
-        amount_units=record.amount_units,
-        invoice_id=record.invoice_id,
-        vendor_id=record.vendor_id,
-        decision_hash=record.decision_hash,
-    )
-    try:
-        execution = await get_keeperhub_client().execute_payment(
-            payload.keeperhub_payload(), idempotency_key=idempotency_key or request_id
-        )
-    except httpx.HTTPStatusError as exc:
-        repo.mark_execution_blocked(request_id, f"KeeperHub rejected execution: {exc.response.status_code}")
-        raise HTTPException(status_code=502, detail="KeeperHub rejected execution") from exc
-    except httpx.HTTPError as exc:
-        repo.mark_execution_blocked(request_id, f"KeeperHub execution request failed: {exc}")
-        raise HTTPException(status_code=502, detail="KeeperHub execution request failed") from exc
-
-    record = repo.update_execution_status(
+    record = await submit_treasury_execution(
+        repo=repo,
+        keeperhub_client=get_keeperhub_client(),
+        settings=settings,
         request_id=request_id,
-        execution_id=execution.execution_id,
-        status=execution.status,
-        transaction_hash=execution.transaction_hash,
-        error_code=execution.error_code,
+        idempotency_key=idempotency_key or request_id,
     )
     if not record:
         raise HTTPException(status_code=404, detail="payment request not found")
