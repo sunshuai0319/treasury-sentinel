@@ -57,6 +57,7 @@ export default function NewPaymentPage() {
   const [status, setStatus] = useState("Ready");
   const [error, setError] = useState<string | null>(null);
   const [invoiceId, setInvoiceId] = useState<string>(paymentPresets[0].payload.invoice_id);
+  const [amountUsdc, setAmountUsdc] = useState<string>("420");
   const { events, eventsRequestId, error: eventError, connected } = usePaymentEvents(requestId);
   const selectedPreset = paymentPresets.find((preset) => preset.id === selectedPresetId) || paymentPresets[0];
   const selectedPayload = selectedPreset.payload;
@@ -101,10 +102,20 @@ export default function NewPaymentPage() {
     setError(null);
     setRun(null);
     setRequestId(undefined);
+    const amountUnits = Math.round(Number(amountUsdc) * 1_000_000);
+    if (!Number.isFinite(amountUnits) || amountUnits <= 0) {
+      setError("Amount must be a positive number");
+      setStatus("Failed");
+      return;
+    }
     setStatus("Creating payment request");
     try {
       const request = await createPaymentRequest(
-        { ...selectedPayload, invoice_id: invoiceId.trim() || selectedPayload.invoice_id },
+        {
+          ...selectedPayload,
+          invoice_id: invoiceId.trim() || selectedPayload.invoice_id,
+          amount_units: amountUnits
+        },
         `web-demo-${selectedPreset.id}-${Date.now()}`
       );
       setStatus("Analysis queued");
@@ -143,6 +154,7 @@ export default function NewPaymentPage() {
                 onClick={() => {
                   setSelectedPresetId(preset.id);
                   setInvoiceId(preset.payload.invoice_id);
+                  setAmountUsdc(String(preset.payload.amount_units / 1_000_000));
                   setRun(null);
                   setRequestId(undefined);
                   setStatus("Ready");
@@ -164,7 +176,24 @@ export default function NewPaymentPage() {
               placeholder="unique invoice identifier per payment"
             />
           </label>
-          <pre>{JSON.stringify({ ...selectedPayload, invoice_id: invoiceId }, null, 2)}</pre>
+          <label className="approvalsApprover">
+            Amount (USDC)
+            <input
+              value={amountUsdc}
+              onChange={(event) => setAmountUsdc(event.target.value)}
+              disabled={selectedPreset.id === "over_limit"}
+              inputMode="decimal"
+              placeholder="e.g. 420"
+            />
+            {selectedPreset.id === "over_limit" ? <small>Fixed at 700 USDC to demonstrate the review path.</small> : null}
+          </label>
+          <pre>
+            {JSON.stringify(
+              { ...selectedPayload, invoice_id: invoiceId, amount_units: Math.round(Number(amountUsdc) * 1_000_000) },
+              null,
+              2
+            )}
+          </pre>
           <p>{status.startsWith("Status:") ? status : `Status: ${status}`}</p>
           {error ? <p className="errorText">{error}</p> : null}
           {requestId ? (

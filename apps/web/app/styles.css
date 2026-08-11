@@ -215,7 +215,8 @@ pre {
 .paymentsRow,
 .paymentsHeader {
   align-items: center;
-  grid-template-columns: 1.3fr 0.7fr 0.9fr 0.8fr 0.9fr auto;
+  /* 第 6 列固定宽度,避免 auto 列随徽章宽度变化导致 fr 列重新分配、表头与内容错位 */
+  grid-template-columns: 1.3fr 0.7fr 0.9fr 0.8fr 0.9fr 170px;
 }
 
 .statusBadge {
@@ -228,6 +229,7 @@ pre {
   letter-spacing: 0.04em;
   padding: 3px 10px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .statusBadge.status-approved,
