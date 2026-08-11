@@ -140,6 +140,13 @@ async def submit_treasury_execution(
     except httpx.HTTPError as exc:
         repo.mark_execution_blocked(request_id, f"KeeperHub execution failed: {exc}")
         return repo.get(request_id)
+    # 初始响应可能不含 tx hash(链上确认异步);主动回查一次补全,
+    # 避免执行后 tx 凭证缺失、只能等 worker 轮询
+    if not execution.transaction_hash and execution.execution_id:
+        try:
+            execution = await keeperhub_client.get_status(execution.execution_id)
+        except httpx.HTTPError:
+            pass
     return repo.update_execution_status(
         request_id=request_id,
         execution_id=execution.execution_id,

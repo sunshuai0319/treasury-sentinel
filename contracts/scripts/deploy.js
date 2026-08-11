@@ -9,7 +9,9 @@ function artifactHash(artifact) {
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  const guard = await ethers.deployContract("TreasuryGuard", [deployer.address, 500_000_000]);
+  // 单笔上限 2000 USDC:覆盖方案 500–2000 单级审批执行场景(旧部署 500 USDC 时
+  // 超过 500 的审批后执行会 PaymentTooLarge revert)
+  const guard = await ethers.deployContract("TreasuryGuard", [deployer.address, 2_000_000_000]);
   await guard.waitForDeployment();
   const demoUsdcAddress = process.env.MOCK_USDC_ADDRESS || process.env.DEMO_USDC_ADDRESS;
   if (demoUsdcAddress) {
@@ -28,8 +30,8 @@ async function main() {
     network: network.name,
     deploymentTxHash: deploymentTx ? deploymentTx.hash : null,
     deploymentBlockNumber: receipt ? receipt.blockNumber : null,
-    maxSinglePaymentUnits: "500000000",
-    dailyLimitUnits: "2000000000",
+    maxSinglePaymentUnits: "2000000000",
+    dailyLimitUnits: "8000000000",
     allowedTokenSeeded: demoUsdcAddress || null,
     abiHash: artifactHash(artifact),
   };

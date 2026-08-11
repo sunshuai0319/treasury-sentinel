@@ -259,6 +259,9 @@ def test_legacy_confirming_without_execution_id_can_retry_keeperhub_execution(
         async def execute_payment(self, payload, idempotency_key=None):
             return KeeperHubExecution(execution_id="exec_retry_123", status="submitted")
 
+        async def get_status(self, execution_id):
+            return KeeperHubExecution(execution_id=execution_id, status="submitted")
+
     payload = {
         "vendor_id": "vendor_demo",
         "invoice_id": "inv_demo_001",
@@ -285,6 +288,9 @@ def test_execution_blocked_without_execution_id_can_retry_after_configuration_fi
     class FakeKeeperHubClient:
         async def execute_payment(self, payload, idempotency_key=None):
             return KeeperHubExecution(execution_id="exec_unblocked_123", status="submitted")
+
+        async def get_status(self, execution_id):
+            return KeeperHubExecution(execution_id=execution_id, status="submitted")
 
     payload = {
         "vendor_id": "vendor_demo",
@@ -633,3 +639,26 @@ def test_analyze_rejects_duplicate_invoice_already_paid(
     final_b = client.get(f"/api/payment-requests/{rid_b}").json()
     assert final_b["status"] == "REJECT"
     assert final_b["keeperhub_execution_id"] is None
+
+
+def test_auto_execute_backfills_transaction_hash_when_missing(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    class FakeKeeperHubClient:
+        async def execute_payment(self, payload, idempotency_key=None):
+            return KeeperHubExecution(execution_id="exec_no_tx", status="submitted", transaction_hash=None)
+
+        async def get_status(self, execution_id: str):
+            return KeeperHubExecution(execution_id=execution_id, status="completed", transaction_hash="0xabc")
+
+    monkeypatch.setattr(routes, "get_keeperhub_client", lambda: FakeKeeperHubClient())
+    monkeypatch.setattr(routes, "get_settings", lambda: _configured_settings())
+    created = client.post(
+        "/api/payment-requests", json=_payment_payload(), headers={"Idempotency-Key": "idem-tx-backfill"}
+    )
+    request_id = created.json()["request_id"]
+    client.post(f"/api/payment-requests/{request_id}/analyze?sync=true")
+
+    final = client.get(f"/api/payment-requests/{request_id}").json()
+    assert final["keeperhub_execution_id"] == "exec_no_tx"
+    assert final["transaction_hash"] == "0xabc"

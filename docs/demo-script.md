@@ -4,7 +4,7 @@ This file is generated from the deterministic local demo runner.
 
 ## Base Sepolia contracts
 
-- TreasuryGuard: `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`
+- TreasuryGuard: `0xE4F52719FC5696e5d746e25E9224518e13f0CEf9`
 - MockUSDC: `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95`
 - Chain ID: `84532`
 
@@ -13,22 +13,22 @@ This file is generated from the deterministic local demo runner.
 1. `normal` → `APPROVE`
    - Request: `demo-normal`
    - Invoice: `INV-2026-DEMO`
-   - Final reasons: approved vendor, matching wallet, unpaid invoice, amount <= 500 USDC
+   - Final reasons: approved vendor, matching wallet, unpaid invoice, amount <= 500 USDC (供应商已批准、钱包匹配、发票未支付、金额≤500 USDC)
    - Policy refs: 2.1 自动付款
 2. `duplicate` → `REJECT`
    - Request: `demo-duplicate`
    - Invoice: `INV-2026-DEMO`
-   - Final reasons: duplicate invoice or content hash
+   - Final reasons: duplicate invoice or content hash (重复发票或内容哈希)
    - Policy refs: 1.1 重复发票
 3. `address_mismatch` → `REJECT`
    - Request: `demo-address_mismatch`
    - Invoice: `INV-2026-DEMO`
-   - Final reasons: recipient address does not match vendor wallet
+   - Final reasons: recipient address does not match vendor wallet (收款地址与供应商钱包不匹配)
    - Policy refs: 2.1 自动付款
 4. `over_limit` → `REVIEW`
    - Request: `demo-over_limit`
    - Invoice: `INV-2026-DEMO`
-   - Final reasons: amount requires finance manager approval
+   - Final reasons: amount requires finance manager approval (金额需财务经理审批)
    - Policy refs: 2.2 单级审批
 5. `pause` → `PAUSE`
    - Request: `demo-pause`
@@ -38,9 +38,9 @@ This file is generated from the deterministic local demo runner.
 
 ## Local API workflow assertions
 
-- `normal` request `pay_5be46e77ad32` → `APPROVE`
-- `address_mismatch` request `pay_18f93bd3b3f3` → `REJECT`
-- `over_limit` request `pay_faeeeb5b487e` → `REVIEW`
+- `normal` request `pay_e49d1c9f38e0` → `APPROVE`
+- `address_mismatch` request `pay_3059897785cd` → `REJECT`
+- `over_limit` request `pay_203bb786fa18` → `REVIEW`
 
 ## KeeperHub / transaction evidence
 

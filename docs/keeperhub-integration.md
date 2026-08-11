@@ -5,12 +5,16 @@
 | Item | Value |
 | --- | --- |
 | Chain | Base Sepolia (`84532`) |
-| TreasuryGuard | `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3` |
+| TreasuryGuard | `0xE4F52719FC5696e5d746e25E9224518e13f0CEf9` |
 | MockUSDC | `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95` |
 | KeeperHub EVM wallet | `0x7836A8deB72B27F94d0dF555E23d684aDC894Fe6` |
 | Demo recipient | `0x1111111111111111111111111111111111111111` |
 
-The KeeperHub wallet has `EXECUTOR_ROLE` for normal approved payments and `GUARDIAN_ROLE` for emergency pause actions. The Guard is funded with 1000 MockUSDC and the demo recipient is allowlisted.
+The current TreasuryGuard (`maxSinglePaymentUnits=2000 USDC`, `dailyLimit=8000 USDC`) is a redeploy
+that supports the 500–2000 USDC finance-approval execution path (the first deployment at
+`0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3` capped single payments at 500 USDC, so approved
+payments above that reverted with `PaymentTooLarge`). The KeeperHub wallet has `EXECUTOR_ROLE`
+and `GUARDIAN_ROLE`; the Guard is funded with 5000 MockUSDC and the demo recipient is allowlisted.
 
 ## API execution path
 
@@ -62,6 +66,8 @@ KeeperHub credentials are not configured.
 The calldata selector is `0xde62cb4b`.
 
 ## Verified execution evidence
+
+> 历史记录:以下执行发生在**旧合约** `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`(部署于 2026-08-05,单笔上限 500 USDC)。新合约部署后,当前执行使用 `0xE4F52719FC5696e5d746e25E9224518e13f0CEf9`。
 
 | Field | Value |
 | --- | --- |
