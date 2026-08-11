@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { use } from "react";
 
 import { DecisionTimeline } from "@/components/decision-timeline/DecisionTimeline";
-import { getPaymentRequest, paymentEventsUrl, type PaymentRequest } from "@/lib/api/treasury";
+import { baseScanTxUrl, getPaymentRequest, paymentEventsUrl, type PaymentRequest } from "@/lib/api/treasury";
 import { buildDecisionSteps, usePaymentEvents } from "@/lib/api/usePaymentEvents";
 
 export default function PaymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -12,6 +12,7 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
   const [payment, setPayment] = useState<PaymentRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { events } = usePaymentEvents(payment?.request_id);
+  const txUrl = payment ? baseScanTxUrl(payment.transaction_hash) : null;
   const steps = buildDecisionSteps(events);
 
   useEffect(() => {
@@ -39,6 +40,14 @@ export default function PaymentDetailPage({ params }: { params: Promise<{ id: st
             Status: <strong className={`statusBadge status-${payment.status.toLowerCase()}`}>{payment.status}</strong>
           </p>
           {payment.final_action ? <p>Final action: {payment.final_action}</p> : null}
+          {txUrl ? (
+            <p>
+              On-chain:{" "}
+              <a className="txLink" href={txUrl} target="_blank" rel="noreferrer">
+                View on BaseScan ↗
+              </a>
+            </p>
+          ) : null}
           <p>SSE: {paymentEventsUrl(payment.request_id)}</p>
         </section>
       ) : null}

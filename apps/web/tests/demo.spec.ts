@@ -450,3 +450,50 @@ test("payments list paginates when there are more than five requests", async ({ 
   await expect(page.getByText("pay_page_1")).toBeVisible();
   await expect(page.getByText("pay_page_6")).not.toBeVisible();
 });
+
+test("payments and audit lists link confirmed transactions to BaseScan", async ({ page }) => {
+  const confirmed = {
+    request_id: "pay_hist_confirmed",
+    vendor_id: "vendor_demo",
+    invoice_id: "inv_demo_001",
+    amount_units: 420000000,
+    recipient_address: "0x1111111111111111111111111111111111111111",
+    status: "CONFIRMED",
+    final_action: "APPROVE",
+    decision_hash: "0xabc",
+    keeperhub_execution_id: "exec_1",
+    transaction_hash: "0x1234abcd5678ef",
+    created_at: "2026-08-01T08:00:00"
+  };
+  const pending = {
+    ...confirmed,
+    request_id: "pay_hist_pending",
+    invoice_id: "inv_demo_pending",
+    status: "APPROVED",
+    keeperhub_execution_id: null,
+    transaction_hash: null
+  };
+  await page.route("**/api/payment-requests", async (route) => {
+    await route.fulfill({ json: [confirmed, pending] });
+  });
+  const txHref = "https://sepolia.basescan.org/tx/0x1234abcd5678ef";
+
+  await page.goto("/payments");
+  const onChainLink = page.getByRole("link", { name: "BaseScan ↗" });
+  await expect(onChainLink).toHaveCount(1);
+  await expect(onChainLink).toHaveAttribute("href", txHref);
+  await expect(onChainLink).toHaveAttribute("target", "_blank");
+  // Only the confirmed row carries a tx link; the pending row shows a placeholder.
+  await expect(page.getByLabel("No transaction yet")).toHaveCount(1);
+
+  // Detail page surfaces the same on-chain link.
+  await page.route("**/api/payment-requests/pay_hist_confirmed", async (route) => {
+    await route.fulfill({ json: confirmed });
+  });
+  await page.getByRole("link", { name: /pay_hist_confirmed/ }).click();
+  await expect(page.getByRole("link", { name: "View on BaseScan ↗" })).toHaveAttribute("href", txHref);
+
+  // Audit index also exposes the on-chain link.
+  await page.goto("/audit");
+  await expect(page.getByRole("link", { name: "BaseScan ↗" })).toHaveCount(1);
+});

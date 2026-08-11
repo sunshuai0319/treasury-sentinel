@@ -215,8 +215,17 @@ pre {
 .paymentsRow,
 .paymentsHeader {
   align-items: center;
-  /* 第 6 列固定宽度,避免 auto 列随徽章宽度变化导致 fr 列重新分配、表头与内容错位 */
-  grid-template-columns: 1.3fr 0.7fr 0.9fr 0.8fr 0.9fr 170px;
+  /* 第 6 列固定宽度,避免 auto 列随徽章宽度变化导致 fr 列重新分配、表头与内容错位;第 7 列放 BaseScan 外链 */
+  grid-template-columns: 1.3fr 0.7fr 0.9fr 0.8fr 0.9fr 170px 90px;
+}
+
+/* 前缀 .paymentsRow / .copyPanel 覆盖同层级的 .tableRow span 与 .copyPanel a 颜色规则 */
+.paymentsRow .txLink,
+.copyPanel .txLink {
+  color: #38bdf8;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .statusBadge {

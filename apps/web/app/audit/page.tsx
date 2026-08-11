@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import Pagination from "@/components/Pagination";
-import { formatPaymentTime, listPaymentRequests, type PaymentRequest } from "@/lib/api/treasury";
+import { baseScanTxUrl, formatPaymentTime, listPaymentRequests, type PaymentRequest } from "@/lib/api/treasury";
 
 const pageSize = 5;
 
@@ -49,17 +49,31 @@ export default function AuditIndexPage() {
             <span>Amount</span>
             <span>Created</span>
             <span>Status</span>
+            <span>On-chain</span>
           </div>
-          {visible.map((payment) => (
-            <Link className="tableRow paymentsRow" href={`/audit/${payment.request_id}`} key={payment.request_id}>
-              <strong>{payment.request_id}</strong>
-              <span>{payment.vendor_id}</span>
-              <span>{payment.invoice_id}</span>
-              <span>{`${(payment.amount_units / 1_000_000).toLocaleString()} USDC`}</span>
-              <span>{formatPaymentTime(payment.created_at)}</span>
-              <span className={`statusBadge status-${payment.status.toLowerCase()}`}>{payment.status}</span>
-            </Link>
-          ))}
+          {visible.map((payment) => {
+            const txUrl = baseScanTxUrl(payment.transaction_hash);
+            return (
+              // 整行拆为 div:HTML 不允许 <a> 嵌套 <a>,详情入口与 BaseScan 外链必须独立
+              <div className="tableRow paymentsRow" key={payment.request_id}>
+                <Link href={`/audit/${payment.request_id}`}>
+                  <strong>{payment.request_id}</strong>
+                </Link>
+                <span>{payment.vendor_id}</span>
+                <span>{payment.invoice_id}</span>
+                <span>{`${(payment.amount_units / 1_000_000).toLocaleString()} USDC`}</span>
+                <span>{formatPaymentTime(payment.created_at)}</span>
+                <span className={`statusBadge status-${payment.status.toLowerCase()}`}>{payment.status}</span>
+                {txUrl ? (
+                  <a className="txLink" href={txUrl} target="_blank" rel="noreferrer">
+                    BaseScan ↗
+                  </a>
+                ) : (
+                  <span aria-label="No transaction yet">—</span>
+                )}
+              </div>
+            );
+          })}
         </section>
       )}
       <Pagination page={safePage} pageCount={pageCount} onPageChange={setPage} />

@@ -39,6 +39,16 @@ export function formatPaymentTime(iso: string): string {
   return iso.replace("T", " ").slice(0, 16);
 }
 
+// BaseScan block explorer, defaulting to Base Sepolia where the treasury
+// guard contract is currently deployed (chain_id 84532). Override for mainnet:
+//   NEXT_PUBLIC_BASE_SCAN_BASE_URL=https://basescan.org
+const baseScanBaseUrl = process.env.NEXT_PUBLIC_BASE_SCAN_BASE_URL || "https://sepolia.basescan.org";
+
+export function baseScanTxUrl(txHash: string | null | undefined): string | null {
+  if (!txHash) return null;
+  return `${baseScanBaseUrl}/tx/${txHash}`;
+}
+
 export type CreatePaymentPayload = {
   vendor_id: string;
   invoice_id: string;
