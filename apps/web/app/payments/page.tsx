@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import Pagination from "@/components/Pagination";
-import { listPaymentRequests, type PaymentRequest } from "@/lib/api/treasury";
+import { formatPaymentTime, listPaymentRequests, type PaymentRequest } from "@/lib/api/treasury";
 
 const pageSize = 5;
 
@@ -52,6 +52,7 @@ export default function PaymentsPage() {
             <span>Vendor</span>
             <span>Invoice</span>
             <span>Amount</span>
+            <span>Created</span>
             <span>Status</span>
           </div>
           {visible.map((payment) => (
@@ -60,6 +61,7 @@ export default function PaymentsPage() {
               <span>{payment.vendor_id}</span>
               <span>{payment.invoice_id}</span>
               <span>{`${(payment.amount_units / 1_000_000).toLocaleString()} USDC`}</span>
+              <span>{formatPaymentTime(payment.created_at)}</span>
               <span className={`statusBadge status-${payment.status.toLowerCase()}`}>{payment.status}</span>
             </Link>
           ))}

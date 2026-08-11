@@ -195,9 +195,10 @@ pre {
   color: var(--panel-dark-muted);
 }
 
-.approvalRow {
+.approvalRow,
+.approvalHeader {
   align-items: center;
-  grid-template-columns: 1.4fr 0.7fr 0.9fr 0.8fr auto;
+  grid-template-columns: 1.3fr 0.7fr 0.9fr 0.8fr 0.9fr auto;
 }
 
 .approvalHeader,
@@ -211,9 +212,10 @@ pre {
   text-transform: uppercase;
 }
 
-.paymentsRow {
+.paymentsRow,
+.paymentsHeader {
   align-items: center;
-  grid-template-columns: 1.4fr 0.7fr 0.9fr 0.8fr auto;
+  grid-template-columns: 1.3fr 0.7fr 0.9fr 0.8fr 0.9fr auto;
 }
 
 .statusBadge {

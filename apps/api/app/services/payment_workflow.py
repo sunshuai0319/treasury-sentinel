@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Literal, cast
 from uuid import uuid4
 
@@ -39,6 +40,7 @@ class PaymentRequestRecord:
     decision_hash: str | None
     keeperhub_execution_id: str | None
     transaction_hash: str | None
+    created_at: datetime
 
 
 def record_from_table(row: PaymentRequestTable) -> PaymentRequestRecord:
@@ -54,6 +56,7 @@ def record_from_table(row: PaymentRequestTable) -> PaymentRequestRecord:
         decision_hash=row.decision_hash,
         keeperhub_execution_id=row.keeperhub_execution_id,
         transaction_hash=row.transaction_hash,
+        created_at=row.created_at,
     )
 
 

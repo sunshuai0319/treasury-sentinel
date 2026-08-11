@@ -30,7 +30,14 @@ export type PaymentRequest = {
   decision_hash?: string | null;
   keeperhub_execution_id?: string | null;
   transaction_hash?: string | null;
+  created_at: string;
 };
+
+// Backend stores created_at as naive UTC; keep it in UTC for display so the
+// timestampless ISO string is not shifted by the browser timezone.
+export function formatPaymentTime(iso: string): string {
+  return iso.replace("T", " ").slice(0, 16);
+}
 
 export type CreatePaymentPayload = {
   vendor_id: string;

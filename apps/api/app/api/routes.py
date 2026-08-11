@@ -1,5 +1,6 @@
 import json
 import time
+from datetime import datetime
 from functools import lru_cache
 
 import httpx
@@ -56,6 +57,7 @@ class PaymentRequestView(BaseModel):
     decision_hash: str | None
     keeperhub_execution_id: str | None
     transaction_hash: str | None
+    created_at: datetime
 
 
 def to_view(record: PaymentRequestRecord) -> PaymentRequestView:
@@ -70,6 +72,7 @@ def to_view(record: PaymentRequestRecord) -> PaymentRequestView:
         decision_hash=record.decision_hash,
         keeperhub_execution_id=record.keeperhub_execution_id,
         transaction_hash=record.transaction_hash,
+        created_at=record.created_at,
     )
 
 

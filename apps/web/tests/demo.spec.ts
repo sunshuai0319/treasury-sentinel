@@ -215,7 +215,8 @@ test("audit menu lists payments and opens a request's decision trail", async ({ 
     final_action: "REVIEW",
     decision_hash: null,
     keeperhub_execution_id: null,
-    transaction_hash: null
+    transaction_hash: null,
+    created_at: "2026-08-01T08:00:00"
   };
   await page.route("**/api/payment-requests", async (route) => {
     await route.fulfill({ json: [review] });
@@ -238,6 +239,7 @@ test("audit menu lists payments and opens a request's decision trail", async ({ 
   await page.getByRole("link", { name: /Audit trail/ }).click();
   await expect(page.getByText("pay_audit_menu")).toBeVisible();
   await expect(page.getByText("700 USDC")).toBeVisible();
+  await expect(page.getByText("2026-08-01 08:00")).toBeVisible();
 
   await page.getByRole("link", { name: /pay_audit_menu/ }).click();
   await expect(page.getByText("amount requires finance manager approval")).toBeVisible();
@@ -266,7 +268,8 @@ test("approvals lists review payments and approves or rejects them", async ({ pa
       final_action: "REVIEW",
       decision_hash: null,
       keeperhub_execution_id: null,
-      transaction_hash: null
+      transaction_hash: null,
+      created_at: "2026-08-02T08:00:00"
     },
     {
       request_id: "pay_review_2",
@@ -278,7 +281,8 @@ test("approvals lists review payments and approves or rejects them", async ({ pa
       final_action: "REVIEW",
       decision_hash: null,
       keeperhub_execution_id: null,
-      transaction_hash: null
+      transaction_hash: null,
+      created_at: "2026-08-03T08:00:00"
     }
   ];
   await page.route("**/api/payment-requests?status=REVIEW", async (route) => {
@@ -316,6 +320,7 @@ test("approvals lists review payments and approves or rejects them", async ({ pa
   await expect(page.getByText("pay_review_1")).toBeVisible();
   await expect(page.getByText("pay_review_2")).toBeVisible();
   await expect(page.getByText("700 USDC")).toBeVisible();
+  await expect(page.getByText("2026-08-03 08:00")).toBeVisible();
 
   await page.getByRole("button", { name: /Approve/ }).first().click();
   await expect(page.getByText("pay_review_1")).not.toBeVisible();
@@ -359,7 +364,8 @@ test("payments lists real requests with status and links to detail and audit", a
     final_action: "APPROVE",
     decision_hash: "0xabc",
     keeperhub_execution_id: null,
-    transaction_hash: null
+    transaction_hash: null,
+    created_at: "2026-08-01T08:00:00"
   };
   const review = {
     request_id: "pay_hist_review",
@@ -371,7 +377,8 @@ test("payments lists real requests with status and links to detail and audit", a
     final_action: "REVIEW",
     decision_hash: null,
     keeperhub_execution_id: null,
-    transaction_hash: null
+    transaction_hash: null,
+    created_at: "2026-08-02T08:00:00"
   };
   const rejected = {
     request_id: "pay_hist_rejected",
@@ -383,7 +390,8 @@ test("payments lists real requests with status and links to detail and audit", a
     final_action: "REJECT",
     decision_hash: null,
     keeperhub_execution_id: null,
-    transaction_hash: null
+    transaction_hash: null,
+    created_at: "2026-08-03T08:00:00"
   };
   await page.route("**/api/payment-requests", async (route) => {
     await route.fulfill({ json: [approved, review, rejected] });
@@ -402,6 +410,7 @@ test("payments lists real requests with status and links to detail and audit", a
   await expect(page.getByText("REJECT", { exact: true })).toBeVisible();
   await expect(page.getByText("420 USDC").first()).toBeVisible();
   await expect(page.getByText("700 USDC")).toBeVisible();
+  await expect(page.getByText("2026-08-01 08:00")).toBeVisible();
 
   await page.getByRole("link", { name: /pay_hist_approved/ }).click();
   await expect(page.getByText("APPROVED", { exact: true })).toBeVisible();
@@ -418,7 +427,8 @@ test("payments list paginates when there are more than five requests", async ({ 
     final_action: i % 2 === 0 ? "APPROVE" : "REVIEW",
     decision_hash: null,
     keeperhub_execution_id: null,
-    transaction_hash: null
+    transaction_hash: null,
+    created_at: `2026-08-0${i + 1}T08:00:00`
   }));
   await page.route("**/api/payment-requests", async (route) => {
     await route.fulfill({ json: all });

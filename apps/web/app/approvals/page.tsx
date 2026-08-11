@@ -7,6 +7,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import Pagination from "@/components/Pagination";
 import {
   decidePaymentRequest,
+  formatPaymentTime,
   listPaymentRequests,
   type PaymentRequest
 } from "@/lib/api/treasury";
@@ -74,6 +75,7 @@ export default function ApprovalsPage() {
             <span>Vendor</span>
             <span>Invoice</span>
             <span>Amount</span>
+            <span>Created</span>
             <span>Actions</span>
           </div>
           {visible.map((payment) => (
@@ -84,6 +86,7 @@ export default function ApprovalsPage() {
               <span>{payment.vendor_id}</span>
               <span>{payment.invoice_id}</span>
               <span>{`${(payment.amount_units / 1_000_000).toLocaleString()} USDC`}</span>
+              <span>{formatPaymentTime(payment.created_at)}</span>
               <span className="rowActions">
                 <button
                   className="approveButton"
