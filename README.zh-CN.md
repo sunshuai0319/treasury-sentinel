@@ -6,6 +6,8 @@
 `bge-small-zh-v1.5` 做嵌入，Doubao Seed 2.0 Mini（`doubao-seed-2-0-mini-260428`）
 做双 Agent 判断，KeeperHub 负责真实 Base Sepolia 链上执行。
 
+📹 **演示视频：** [Treasury Sentinel — Agentic Treasury Demo](https://youtu.be/ngtl2ls2bnE)
+
 ## 快速开始
 
 ```bash

@@ -6,6 +6,8 @@ The project uses PostgreSQL as the business source of truth, Milvus for policy R
 local `bge-small-zh-v1.5` embeddings, Doubao Seed 2.0 Mini (`doubao-seed-2-0-mini-260428`)
 for dual-agent reasoning, and KeeperHub for real Base Sepolia execution.
 
+📹 **Watch the demo:** [Treasury Sentinel — Agentic Treasury Demo](https://youtu.be/ngtl2ls2bnE)
+
 ## Quick Start
 
 ```bash
