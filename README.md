@@ -3,8 +3,8 @@
 Policy-aware autonomous treasury agent for the KeeperHub Agents Onchain hackathon.
 
 The project uses PostgreSQL as the business source of truth, Milvus for policy RAG,
-local `bge-small-zh-v1.5` embeddings, Doubao Seed 2.1 Pro for dual-agent reasoning,
-and KeeperHub for real Base Sepolia execution.
+local `bge-small-zh-v1.5` embeddings, Doubao Seed 2.0 Mini (`doubao-seed-2-0-mini-260428`)
+for dual-agent reasoning, and KeeperHub for real Base Sepolia execution.
 
 ## Quick Start
 

@@ -3,8 +3,8 @@
 面向 KeeperHub Agents Onchain 黑客松的策略感知自主财资 Agent。
 
 项目使用 PostgreSQL 作为业务事实源，Milvus 做政策 RAG，本地
-`bge-small-zh-v1.5` 做嵌入，Doubao Seed 2.1 Pro 做双 Agent 判断，
-KeeperHub 负责真实 Base Sepolia 链上执行。
+`bge-small-zh-v1.5` 做嵌入，Doubao Seed 2.0 Mini（`doubao-seed-2-0-mini-260428`）
+做双 Agent 判断，KeeperHub 负责真实 Base Sepolia 链上执行。
 
 ## 快速开始
 
