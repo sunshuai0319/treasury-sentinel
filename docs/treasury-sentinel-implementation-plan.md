@@ -10,17 +10,27 @@
 
 ---
 
-## 当前实现进度（2026-08-10）
+## 当前实现进度（2026-08-11）
 
 本轮继续实现后，项目状态从“应用内 APPROVE 后仅标记 `CONFIRMING`”推进到“API 能通过 KeeperHub Direct Execution 构造并提交 `TreasuryGuard.executePaymentWithExpiry(...)`，写回 execution ID / transaction hash，并在分析链路接入实时政策检索与 Doubao Primary/Critic 的应用侧闭环”。`POST /api/payment-requests/{id}/analyze` 已改为默认异步，立即返回 `202 ANALYZING`，前端通过 SSE 接收 `ANALYZING → primary → critic → final → status`；低风险请求默认使用 `risk_based` 模式跳过 Doubao，异常/高风险请求才调用 Primary/Critic。已通过 Base Sepolia 公共 RPC 只读验证：`TreasuryGuard` `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3` 与 `MockUSDC` `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95` 均有链上代码，chainId 为 `84532`；KeeperHub EVM wallet `0x7836A8deB72B27F94d0dF555E23d684aDC894Fe6` 已具备 `EXECUTOR_ROLE` 与 `GUARDIAN_ROLE`；真实付款请求 `pay_9cd3b0932166` 已通过 KeeperHub execution `eaeyxg0igy4f9kovtib51` 完成，交易哈希为 `0xbcbf32c209b3f149408567720253129445c2c356221a4e412ca39d301531a47a`。
+
+2026-08-11 继续推进，完成自动执行闭环与合约重新部署：
+
+- **自动执行（方案 A）**：`analyze` 判 `APPROVE`（低风险）与人工 `approve`（审批通过）后自动通过 KeeperHub 提交上链，状态流转 `APPROVED → CONFIRMING/CONFIRMED`；手动 `execute` 端点保留为补执行/重试路径。执行失败标记 `EXECUTION_BLOCKED`；已有 execution_id 的请求不重复广播（幂等防双付）。
+- **worker 自动轮询**：API 启动时 lifespan 启动 `execution_recovery_loop`，定期轮询 `SIMULATING/EXECUTING/CONFIRMING` 请求并推进到 `CONFIRMED/FAILED`；间隔 `KEEPERHUB_POLL_INTERVAL_SECONDS`（默认 30）。
+- **TreasuryGuard 重新部署**：单笔上限从 500 提升到 **2000 USDC**（`dailyLimit=8000`），使 500–2000 审批后执行不再 `PaymentTooLarge` revert。新合约 `0xE4F52719FC5696e5d746e25E9224518e13f0CEf9` 已授权 KeeperHub `EXECUTOR/GUARDIAN_ROLE`、allow recipient、注资 5000 MockUSDC。
+- **analyzer 跨请求查重**：分析阶段查询已 `CONFIRMED`（链上已付）请求的 invoice_id，重复发票直接判 `REJECT`（1.1 重复发票），不再等链上 `InvoiceAlreadyPaid` 兜底。
+- **invoice 自动补建**：创建付款请求时若 invoices 表缺该发票则自动补建，支持 UI 自定义 invoice_id。
+- **tx hash 即时回写**：KeeperHub 广播后若初始响应缺 tx hash，主动回查 `get_status` 补全。
+- **UI**：新建支付支持自定义 invoice_id 与金额（over_limit 固定 700）；详情页展示 DecisionTimeline（REJECT 原因可见）；payments 列表列对齐修复。
 
 | 范围 | 进度 | 证据 |
 | --- | --- | --- |
 | 任务 8 PostgreSQL/规则 | 部分完成 | SQLAlchemy 已注册 12 张业务表；已新增 Alembic `001_core_tables` 与 `002_payment_execution_columns`；`payment_requests.idempotency_key` 由数据库唯一约束保护；规则结果增加稳定 `rule_codes`。尚缺真实并发 PG 集成测试和规格表名的最终对齐。 |
-| 任务 9 TreasuryGuard | 基本完成 | 本地合约测试通过；增强版 `TreasuryGuard` 已重新部署到 Base Sepolia：`0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`；`MockUSDC` 为 `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95`；Guard 已注资 1000 MockUSDC，token 与 demo recipient 已白名单；KeeperHub wallet 已授予执行与暂停相关角色。BaseScan verify 仍缺 API key，不影响链上执行。 |
-| 任务 10 KeeperHub | 基本完成 | Adapter 已对齐官方 Direct Execution API：Base URL `https://app.keeperhub.com`，路径 `/api/execute/contract-call`，执行前先 `simulate=true` dry-run，再带 `Idempotency-Key` 广播；已提供 `execute_payment()` 入口、`txHash/transactionHash/transaction_hash` 兼容解析和 `SUCCESS/TERMINAL/RETRYABLE` 状态分类；`POST /api/payment-requests/{id}/execute` 会构造 `executePaymentWithExpiry` 调用、提交 KeeperHub execution，并把 `keeperhub_execution_id`、`transaction_hash`、执行状态写入 PostgreSQL。真实证据：execution `eaeyxg0igy4f9kovtib51`，tx `0xbcbf32c209b3f149408567720253129445c2c356221a4e412ca39d301531a47a`。仍未拆成计划中 `client.py/models.py/adapter.py` 三文件结构。 |
+| 任务 9 TreasuryGuard | 完成 | 本地合约测试通过；增强版 `TreasuryGuard` 已重新部署到 Base Sepolia：`0xE4F52719FC5696e5d746e25E9224518e13f0CEf9`（单笔上限 2000 USDC、每日上限 8000 USDC）；`MockUSDC` 为 `0x8eEf98476B371BF01D99CBCEA4D7745B49040c95`；Guard 已注资 5000 MockUSDC，token 与 demo recipient 已白名单；KeeperHub wallet 已授予执行与暂停相关角色。注：2026-08-11 因 500–2000 审批后执行被旧合约（`0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`，单笔上限 500）`PaymentTooLarge` 拦截而重新部署。BaseScan verify 仍缺 API key，不影响链上执行。 |
+| 任务 10 KeeperHub | 基本完成 | Adapter 已对齐官方 Direct Execution API：Base URL `https://app.keeperhub.com`，路径 `/api/execute/contract-call`，执行前先 `simulate=true` dry-run，再带 `Idempotency-Key` 广播；已提供 `execute_payment()` 入口、`txHash/transactionHash/transaction_hash` 兼容解析和 `SUCCESS/TERMINAL/RETRYABLE` 状态分类；`analyze APPROVE` 与人工 `approve` 后自动执行，手动 `execute` 端点保留为补执行/重试；广播后主动回查 `get_status` 补全 tx hash。真实证据：execution `eaeyxg0igy4f9kovtib51`（旧合约），新合约上 execution `ni83o7v0mvu33s81pmapj` / `sdqyd4m3c46luwokcyxhl` 均已 CONFIRMED。仍未拆成计划中 `client.py/models.py/adapter.py` 三文件结构。 |
 | 任务 11 Agent/LangGraph | 基本完成 | `TreasuryAgentGraph` 仍按 validate → retrieve → primary → critic → rules → human/execute → confirm 编排；付款分析 API 已接入 live Milvus/BGE retriever 与 Doubao Primary/Critic；新增 `DOUBAO_DECISION_MODE=risk_based|always|off`、固定 `DOUBAO_MODEL=doubao-seed-2-0-mini-260428`、Primary/Critic token 上限和 60 秒单次调用 timeout；Milvus/BGE/Doubao 异常在 graph 内 fail-closed 到 `REVIEW`，最终裁决取更保守结果。真实 `/api/payment-requests/pay_9c537bf7aeb5/events` 已返回 Primary/Critic/Final 全链路 `REVIEW`。 |
-| 任务 12 FastAPI | 基本完成 | 付款请求 API 已覆盖幂等创建、查询、异步分析、人工审批、未审批执行阻断、真实 KeeperHub execution 提交、审计读取、SSE 事件流和恢复 worker 骨架；`POST /analyze` 默认返回 `202 ANALYZING`，后台完成后写回 `decision_hash` 与最终状态；`analyze`/`execute` 均接收 `Idempotency-Key`；SSE 支持 `last_event_id` 断点续传。保留 `?sync=true` 供测试/脚本同步验证。 |
+| 任务 12 FastAPI | 基本完成 | 付款请求 API 已覆盖幂等创建、查询、异步分析、人工审批、未审批执行阻断、真实 KeeperHub execution 提交、审计读取、SSE 事件流和恢复 worker；`POST /analyze` 默认返回 `202 ANALYZING`，后台完成后写回 `decision_hash` 与最终状态；`analyze`/`execute` 均接收 `Idempotency-Key`；SSE 支持 `last_event_id` 断点续传；API 启动时 lifespan 调度 `execution_recovery_loop` 自动轮询执行状态。保留 `?sync=true` 供测试/脚本同步验证。 |
 | 任务 13 前端控制台 | 基本完成 | 新增首页导航、Demo、Payments、Approvals、Audit、New Payment、Payment Detail 页面；New Payment 已改为启动异步分析并复用 `usePaymentEvents` 实时更新 DecisionTimeline；SSE hook 最多重连三次并携带最后 event ID；新增 Playwright 配置，使用本机 Chrome `channel: "chrome"`，不依赖 Chromium 下载；`npm run lint/typecheck/build/test:e2e` 均通过。 |
 | 任务 14 Demo 固化 | 部分完成 | 新增本地五场景 runner 和 `reset_demo_data.py`；reset 只清理带 `demo_run_id` 的付款请求相关记录；runner 可选 `--workflow` 走真实 repository 分析；生成 `docs/demo-script.md`，记录 Base Sepolia 合约地址和五场景决策证据；不伪造 KeeperHub execution ID/tx hash。尚缺真实链上五场景 E2E。 |
 | 任务 15 Onboarding | 部分完成 | 新增 `starter-kit/scripts/check_environment.py`、双语 Quickstart、Troubleshooting、反馈报告、架构与安全文档；可检查 Python、Web3、模型、PG、Milvus、RPC、合约地址、USDC、KeeperHub 配置、KeeperHub wallet 的 `EXECUTOR_ROLE/GUARDIAN_ROLE` 与 TreasuryGuard USDC 余额。最终验证中除 live-chain 五场景外本地检查通过。 |
@@ -29,7 +39,7 @@
 
 ```text
 cd apps/api && uv run pytest -q
-结果：48 passed
+结果：64 passed（含自动执行、审批后执行、重复发票查重、tx hash 回写、幂等防双付测试）
 
 cd apps/api && uv run ruff check app tests ../../starter-kit/scripts/check_environment.py && uv run mypy app
 结果：ruff 通过；mypy 通过
