@@ -15,6 +15,7 @@ from app.domain.tables import (
     AgentRunTable,
     ApprovalTable,
     AuditLogTable,
+    InvoiceTable,
     KeeperHubExecutionTable,
     PaymentRequestTable,
     RuleEvaluationTable,
@@ -77,6 +78,22 @@ class PaymentWorkflowRepository:
             existing = self._get_by_idempotency(session, idempotency_key)
             if existing:
                 return record_from_table(existing)
+
+            # 支持 UI 自定义 invoice_id:invoices 表不存在该发票时自动补建,
+            # 避免 payment_requests.invoice_id 外键约束导致创建失败
+            if session.get(InvoiceTable, invoice_id) is None:
+                session.add(
+                    InvoiceTable(
+                        invoice_id=invoice_id,
+                        vendor_id=vendor_id,
+                        amount_units=amount_units,
+                        currency="USDC",
+                        category="software",
+                        recipient_address=recipient_address,
+                        content_hash=stable_decision_hash({"invoice_id": invoice_id}),
+                        status="SUBMITTED",
+                    )
+                )
 
             row = PaymentRequestTable(
                 request_id=f"pay_{uuid4().hex[:12]}",
