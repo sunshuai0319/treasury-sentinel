@@ -11,7 +11,7 @@ smart contract guarantees it cannot exceed its authority even when the AI is wro
 
 ## Demo video
 
-> 📹 **Video URL:** _to be added_
+> 📹 **Watch the demo:** [Treasury Sentinel — Agentic Treasury Demo](https://youtu.be/ngtl2ls2bnE)
 
 ---
 
