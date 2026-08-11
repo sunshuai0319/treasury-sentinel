@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     keeperhub_api_key: str
     keeperhub_base_url: str = "https://app.keeperhub.com"
     keeperhub_wallet_address: str | None = None
+    keeperhub_poll_enabled: bool = True
+    keeperhub_poll_interval_seconds: int = 30
     base_sepolia_rpc_url: str
     chain_id: int = Field(default=84532)
     treasury_guard_address: str | None = None

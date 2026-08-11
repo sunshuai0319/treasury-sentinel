@@ -328,6 +328,20 @@ class PaymentWorkflowRepository:
             ).all()
             return [record_from_table(row) for row in rows]
 
+    def list_pending_auto_execution(self) -> list[PaymentRequestRecord]:
+        """存量已 APPROVED、尚无 KeeperHub execution_id 的请求,供补执行脚本扫描。"""
+        with self.session_factory() as session:
+            rows = session.scalars(
+                select(PaymentRequestTable)
+                .where(
+                    PaymentRequestTable.status == "APPROVED",
+                    PaymentRequestTable.final_action == "APPROVE",
+                    PaymentRequestTable.keeperhub_execution_id.is_(None),
+                )
+                .order_by(PaymentRequestTable.created_at.asc())
+            ).all()
+            return [record_from_table(row) for row in rows]
+
     def mark_execution_blocked(self, request_id: str, reason: str) -> PaymentRequestRecord | None:
         with self.session_factory() as session:
             row = session.get(PaymentRequestTable, request_id)

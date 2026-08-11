@@ -40,6 +40,25 @@ Analysis `APPROVE` and manual `approve` now submit to KeeperHub automatically; t
 - Idempotency: a request that already has a KeeperHub `execution_id` is never broadcast again.
 - Broadcast failure marks the request `EXECUTION_BLOCKED` for auditability; retry via `execute`.
 
+### Execution status polling (worker)
+
+On API startup the lifespan launches `execution_recovery_loop`, which polls KeeperHub
+`GET /api/execute/{execution_id}/status` for `SIMULATING`/`EXECUTING`/`CONFIRMING` requests
+and advances them to `CONFIRMED`/`FAILED`. Interval is `KEEPERHUB_POLL_INTERVAL_SECONDS`
+(default 30); disable with `KEEPERHUB_POLL_ENABLED=false`.
+
+### Backfilling pre-existing APPROVED requests
+
+Requests approved before this change (with no `execution_id`) can be broadcast in bulk:
+
+```bash
+PYTHONPATH=apps/api apps/api/.venv/bin/python scripts/backfill_approved_payments.py
+```
+
+The script scans `status=APPROVED && final_action=APPROVE && execution_id IS NULL`, submits each
+through `submit_treasury_execution` (idempotent, no double-broadcast), and skips requests when
+KeeperHub credentials are not configured.
+
 The calldata selector is `0xde62cb4b`.
 
 ## Verified execution evidence

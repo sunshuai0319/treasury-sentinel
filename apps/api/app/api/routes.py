@@ -219,10 +219,13 @@ async def analyze_payment_request(
     existing = repo.get(request_id)
     if not existing:
         raise HTTPException(status_code=404, detail="payment request not found")
-    if idempotency_key and existing.status == "ANALYZING":
-        response.status_code = status.HTTP_202_ACCEPTED
+    # 只允许对 SUBMITTED 请求执行分析;已完成(APPROVED/REVIEW/CONFIRMING/CONFIRMED
+    # /FAILED/EXECUTION_BLOCKED)的请求直接返回现有状态,避免状态倒退回 APPROVED。
+    if existing.status == "ANALYZING":
+        if idempotency_key:
+            response.status_code = status.HTTP_202_ACCEPTED
         return to_view(existing)
-    if idempotency_key and existing.status not in {"SUBMITTED", "ANALYZING"}:
+    if existing.status != "SUBMITTED":
         return to_view(existing)
     if sync:
         run = await asyncio.to_thread(

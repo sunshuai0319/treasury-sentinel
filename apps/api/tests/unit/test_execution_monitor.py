@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -7,7 +9,7 @@ from app.db import Base
 from app.domain.tables import InvoiceTable, PaymentRequestTable, VendorTable
 from app.integrations.keeperhub import KeeperHubExecution
 from app.services.payment_workflow import PaymentWorkflowRepository
-from app.workers.execution_monitor import recover_confirming_executions
+from app.workers.execution_monitor import execution_recovery_loop, recover_confirming_executions
 
 
 @pytest.mark.asyncio
@@ -38,6 +40,42 @@ async def test_recovery_updates_status_without_reexecuting_payment():
     assert record is not None
     assert record.status == "CONFIRMED"
     assert record.transaction_hash == "0xabc"
+
+
+@pytest.mark.asyncio
+async def test_execution_recovery_loop_polls_then_stops_on_event():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(engine)
+    with SessionLocal() as session:
+        seed(session)
+    repo = PaymentWorkflowRepository(SessionLocal)
+
+    polled: list[str] = []
+
+    async def get_status(execution_id: str) -> KeeperHubExecution:
+        polled.append(execution_id)
+        return KeeperHubExecution(
+            execution_id=execution_id,
+            status="completed",
+            transaction_hash="0xabc",
+        )
+
+    stop_event = asyncio.Event()
+    task = asyncio.create_task(
+        execution_recovery_loop(repo, get_status, interval_seconds=0.01, stop_event=stop_event)
+    )
+    await asyncio.sleep(0.03)
+    stop_event.set()
+    await task
+
+    assert polled == ["exec_123"]
+    assert repo.get("pay_recover") is not None
+    assert repo.get("pay_recover").status == "CONFIRMED"  # type: ignore[union-attr]
 
 
 def seed(session: Session) -> None:

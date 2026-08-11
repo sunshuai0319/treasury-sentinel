@@ -32,6 +32,9 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 
+[tool.ruff.lint]
+ignore = ["DTZ001"]  # 数据库列使用 naive UTC(datetime.utcnow),与 tzinfo 规则冲突
+
 [[tool.mypy.overrides]]
 module = ["pymilvus", "pymilvus.*"]
 ignore_missing_imports = true

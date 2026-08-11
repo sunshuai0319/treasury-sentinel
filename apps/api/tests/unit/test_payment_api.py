@@ -567,3 +567,35 @@ def test_auto_execute_does_not_double_broadcast(
     executed = client.post(f"/api/payment-requests/{request_id}/execute")
     assert executed.status_code == 409
     assert len(captured_payloads) == 1
+
+
+def test_analyze_does_not_rewind_already_executed_request(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    captured_payloads = []
+
+    class FakeKeeperHubClient:
+        async def execute_payment(self, payload, idempotency_key=None):
+            captured_payloads.append(payload)
+            return KeeperHubExecution(
+                execution_id="exec_no_rewind",
+                status="submitted",
+                transaction_hash="0xrewind",
+            )
+
+    monkeypatch.setattr(routes, "get_keeperhub_client", lambda: FakeKeeperHubClient())
+    monkeypatch.setattr(routes, "get_settings", lambda: _configured_settings())
+    created = client.post(
+        "/api/payment-requests", json=_payment_payload(), headers={"Idempotency-Key": "idem-no-rewind"}
+    )
+    request_id = created.json()["request_id"]
+    client.post(f"/api/payment-requests/{request_id}/analyze?sync=true")
+    assert client.get(f"/api/payment-requests/{request_id}").json()["status"] == "CONFIRMING"
+
+    # 对已执行的请求再次分析(不带 idempotency-key),不应把状态倒退成 APPROVED 或重新广播
+    client.post(f"/api/payment-requests/{request_id}/analyze?sync=true")
+
+    final = client.get(f"/api/payment-requests/{request_id}").json()
+    assert final["status"] == "CONFIRMING"
+    assert final["keeperhub_execution_id"] == "exec_no_rewind"
+    assert len(captured_payloads) == 1

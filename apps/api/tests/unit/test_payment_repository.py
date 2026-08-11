@@ -106,3 +106,57 @@ def test_list_orders_by_created_at_newest_first():
     assert [r.request_id for r in repo.list_all()] == ["pay_new", "pay_old"]
     assert [r.request_id for r in repo.list_by_status("REVIEW")] == ["pay_new"]
     assert [r.request_id for r in repo.list_by_status("APPROVED")] == ["pay_old"]
+
+
+def test_list_pending_auto_execution_returns_approved_without_execution_id():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(engine)
+    with SessionLocal() as session:
+        seed(session)
+        session.add_all(
+            [
+                PaymentRequestTable(
+                    request_id="pay_pending",
+                    idempotency_key="key-pending",
+                    vendor_id="vendor_demo",
+                    invoice_id="inv_demo",
+                    amount_units=100_000_000,
+                    recipient_address="0x1111111111111111111111111111111111111111",
+                    status="APPROVED",
+                    final_action="APPROVE",
+                    created_at=datetime(2026, 1, 1),
+                ),
+                PaymentRequestTable(
+                    request_id="pay_executed",
+                    idempotency_key="key-executed",
+                    vendor_id="vendor_demo",
+                    invoice_id="inv_demo",
+                    amount_units=100_000_000,
+                    recipient_address="0x1111111111111111111111111111111111111111",
+                    status="CONFIRMED",
+                    final_action="APPROVE",
+                    keeperhub_execution_id="exec_1",
+                    created_at=datetime(2026, 1, 2),
+                ),
+                PaymentRequestTable(
+                    request_id="pay_not_approved",
+                    idempotency_key="key-not-approved",
+                    vendor_id="vendor_demo",
+                    invoice_id="inv_demo",
+                    amount_units=100_000_000,
+                    recipient_address="0x1111111111111111111111111111111111111111",
+                    status="REVIEW",
+                    final_action="REVIEW",
+                    created_at=datetime(2026, 1, 3),
+                ),
+            ]
+        )
+        session.commit()
+
+    repo = PaymentWorkflowRepository(SessionLocal)
+    assert [r.request_id for r in repo.list_pending_auto_execution()] == ["pay_pending"]
