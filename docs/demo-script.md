@@ -38,9 +38,9 @@ This file is generated from the deterministic local demo runner.
 
 ## Local API workflow assertions
 
-- `normal` request `pay_e49d1c9f38e0` → `APPROVE`
-- `address_mismatch` request `pay_3059897785cd` → `REJECT`
-- `over_limit` request `pay_203bb786fa18` → `REVIEW`
+- `normal` request `pay_cfce084a59fb` → `APPROVE`
+- `address_mismatch` request `pay_26006cdc7d79` → `REJECT`
+- `over_limit` request `pay_67827d42cdfd` → `REVIEW`
 
 ## KeeperHub / transaction evidence
 
