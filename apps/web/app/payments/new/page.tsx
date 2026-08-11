@@ -56,6 +56,7 @@ export default function NewPaymentPage() {
   const [requestId, setRequestId] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState("Ready");
   const [error, setError] = useState<string | null>(null);
+  const [invoiceId, setInvoiceId] = useState<string>(paymentPresets[0].payload.invoice_id);
   const { events, eventsRequestId, error: eventError, connected } = usePaymentEvents(requestId);
   const selectedPreset = paymentPresets.find((preset) => preset.id === selectedPresetId) || paymentPresets[0];
   const selectedPayload = selectedPreset.payload;
@@ -102,7 +103,10 @@ export default function NewPaymentPage() {
     setRequestId(undefined);
     setStatus("Creating payment request");
     try {
-      const request = await createPaymentRequest(selectedPayload, `web-demo-${selectedPreset.id}-${Date.now()}`);
+      const request = await createPaymentRequest(
+        { ...selectedPayload, invoice_id: invoiceId.trim() || selectedPayload.invoice_id },
+        `web-demo-${selectedPreset.id}-${Date.now()}`
+      );
       setStatus("Analysis queued");
       setRequestId(request.request_id);
       await startPaymentAnalysis(request.request_id, `analysis-${request.request_id}`);
@@ -138,6 +142,7 @@ export default function NewPaymentPage() {
                 disabled={analyzing}
                 onClick={() => {
                   setSelectedPresetId(preset.id);
+                  setInvoiceId(preset.payload.invoice_id);
                   setRun(null);
                   setRequestId(undefined);
                   setStatus("Ready");
@@ -151,7 +156,15 @@ export default function NewPaymentPage() {
             ))}
           </div>
           <p className="presetDescription">{selectedPreset.description}</p>
-          <pre>{JSON.stringify(selectedPayload, null, 2)}</pre>
+          <label className="approvalsApprover">
+            Invoice ID
+            <input
+              value={invoiceId}
+              onChange={(event) => setInvoiceId(event.target.value)}
+              placeholder="unique invoice identifier per payment"
+            />
+          </label>
+          <pre>{JSON.stringify({ ...selectedPayload, invoice_id: invoiceId }, null, 2)}</pre>
           <p>{status.startsWith("Status:") ? status : `Status: ${status}`}</p>
           {error ? <p className="errorText">{error}</p> : null}
           {requestId ? (

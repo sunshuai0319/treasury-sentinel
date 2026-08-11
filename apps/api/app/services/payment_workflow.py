@@ -193,7 +193,22 @@ class PaymentWorkflowRepository:
                 recipient_address=row.recipient_address,
                 content_hash=stable_decision_hash({"invoice_id": row.invoice_id}),
             )
-            rule = evaluate_payment(vendor, invoice)
+            # 跨请求查重:已链上确认付款的同发票不得重复支付(1.1 重复发票)
+            paid_rows = session.scalars(
+                select(PaymentRequestTable).where(
+                    PaymentRequestTable.status == "CONFIRMED",
+                    PaymentRequestTable.transaction_hash.is_not(None),
+                    PaymentRequestTable.request_id != row.request_id,
+                )
+            ).all()
+            paid_invoice_ids = {r.invoice_id for r in paid_rows}
+            paid_hashes = {stable_decision_hash({"invoice_id": r.invoice_id}) for r in paid_rows}
+            rule = evaluate_payment(
+                vendor,
+                invoice,
+                paid_invoice_ids=paid_invoice_ids,
+                paid_hashes=paid_hashes,
+            )
             effective_llm_decision_provider = llm_decision_provider
             if doubao_decision_mode == "off" or (
                 doubao_decision_mode == "risk_based" and not _requires_llm_review(rule.decision.value, vendor)
@@ -214,6 +229,7 @@ class PaymentWorkflowRepository:
                     "recipient_address": invoice.recipient_address,
                     "category": invoice.category,
                     "wallet_changed_recently": vendor.wallet_changed_recently,
+                    "paid_invoice_ids": paid_invoice_ids,
                 }
             )
             final_action = cast(Literal["APPROVE", "REVIEW", "REJECT", "PAUSE"], graph_run.final_action)

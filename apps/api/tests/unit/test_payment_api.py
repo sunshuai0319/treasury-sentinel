@@ -599,3 +599,37 @@ def test_analyze_does_not_rewind_already_executed_request(
     assert final["status"] == "CONFIRMING"
     assert final["keeperhub_execution_id"] == "exec_no_rewind"
     assert len(captured_payloads) == 1
+
+
+def test_analyze_rejects_duplicate_invoice_already_paid(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    class FakeKeeperHubClient:
+        async def execute_payment(self, payload, idempotency_key=None):
+            return KeeperHubExecution(
+                execution_id="exec_dup_a",
+                status="completed",
+                transaction_hash="0xdupa",
+            )
+
+    monkeypatch.setattr(routes, "get_keeperhub_client", lambda: FakeKeeperHubClient())
+    monkeypatch.setattr(routes, "get_settings", lambda: _configured_settings())
+
+    # 请求 A:inv_demo_001 → 自动执行 → CONFIRMED(链上已付)
+    created_a = client.post(
+        "/api/payment-requests", json=_payment_payload(), headers={"Idempotency-Key": "idem-dup-a"}
+    )
+    rid_a = created_a.json()["request_id"]
+    client.post(f"/api/payment-requests/{rid_a}/analyze?sync=true")
+    assert client.get(f"/api/payment-requests/{rid_a}").json()["status"] == "CONFIRMED"
+
+    # 请求 B:同 invoice_id → analyze 应判 REJECT(重复发票),不自动执行
+    created_b = client.post(
+        "/api/payment-requests", json=_payment_payload(), headers={"Idempotency-Key": "idem-dup-b"}
+    )
+    rid_b = created_b.json()["request_id"]
+    analyzed_b = client.post(f"/api/payment-requests/{rid_b}/analyze?sync=true")
+    assert analyzed_b.json()["final_action"] == "REJECT"
+    final_b = client.get(f"/api/payment-requests/{rid_b}").json()
+    assert final_b["status"] == "REJECT"
+    assert final_b["keeperhub_execution_id"] is None
