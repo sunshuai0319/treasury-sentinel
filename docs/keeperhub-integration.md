@@ -67,7 +67,8 @@ The calldata selector is `0xde62cb4b`.
 
 ## Verified execution evidence
 
-> 历史记录:以下执行发生在**旧合约** `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`(部署于 2026-08-05,单笔上限 500 USDC)。新合约部署后,当前执行使用 `0xE4F52719FC5696e5d746e25E9224518e13f0CEf9`。(History: this execution ran on the **legacy contract** `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`, deployed on 2026-08-05 with a 500 USDC single-payment cap. Current executions use the new contract `0xE4F52719FC5696e5d746e25E9224518e13f0CEf9`.)
+> 历史记录:以下执行发生在**旧合约** `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`(部署于 2026-08-05,单笔上限 500 USDC)。新合约部署后,当前执行使用 `0xE4F52719FC5696e5d746e25E9224518e13f0CEf9`。
+(History: this execution ran on the **legacy contract** `0xcC615A47EFC313172376341Edd5DAfD0f79f8EB3`, deployed on 2026-08-05 with a 500 USDC single-payment cap. Current executions use the new contract `0xE4F52719FC5696e5d746e25E9224518e13f0CEf9`.)
 
 | Field | Value |
 | --- | --- |
